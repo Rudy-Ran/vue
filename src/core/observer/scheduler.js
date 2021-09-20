@@ -70,6 +70,7 @@ if (inBrowser && !isIE) {
  */
 function flushSchedulerQueue () {
   currentFlushTimestamp = getNow()
+  // flushing = true 表示现在的watcher队列正在刷新
   flushing = true
   let watcher, id
 
@@ -85,11 +86,14 @@ function flushSchedulerQueue () {
 
   // do not cache length because more watchers might be pushed
   // as we run existing watchers
+  // 循环遍历watcher队列 依次执行watcher 的run方法
   for (index = 0; index < queue.length; index++) {
     watcher = queue[index]
+    // 首先执行before钩子
     if (watcher.before) {
       watcher.before()
     }
+    // 清空缓存，表示当前watcher已经被执行 当该watcher再次入队时就可以进来了
     id = watcher.id
     has[id] = null
     watcher.run()
@@ -164,12 +168,17 @@ function callActivatedHooks (queue) {
 export function queueWatcher (watcher: Watcher) {
   const id = watcher.id
   if (has[id] == null) {
+    // 判重，watcher不会重复入队列
+    // watcher如果入队，会缓存一下 置为true
     has[id] = true
     if (!flushing) {
+      // flaushing = false 表示当前watcher队列没有被刷新 watcher直接入队
       queue.push(watcher)
     } else {
       // if already flushing, splice the watcher based on its id
       // if already past its id, it will be run next immediately.
+      // watcher队列已经在被刷新了 这个时候watcher入队需要特殊处理一下
+      // 保证 watcher入队后 刷新中的watcher队列仍然有序
       let i = queue.length - 1
       while (i > index && queue[i].id > watcher.id) {
         i--
@@ -178,9 +187,12 @@ export function queueWatcher (watcher: Watcher) {
     }
     // queue the flush
     if (!waiting) {
+      // wating = false 表示当前浏览器的异步任务队列中没有 flushSchedulerQueue
       waiting = true
 
       if (process.env.NODE_ENV !== 'production' && !config.async) {
+        // 同步执行 直接刷新watcher队列
+        // 性能就会大打折扣
         flushSchedulerQueue()
         return
       }

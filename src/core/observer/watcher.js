@@ -98,12 +98,19 @@ export default class Watcher {
 
   /**
    * Evaluate the getter, and re-collect dependencies.
+   * 触发updateComponent 的执行 进行组件更新进入patch阶段
+   * 更新组件时先执行render 生成vnode 期间触发读取操作，进行依赖收集
    */
   get () {
+    // 对新值进行依赖收集
     pushTarget(this)
     let value
     const vm = this.vm
     try {
+      // 执行实例化watcher时传递进来的第二个参数
+      // 有可能是一函数 比如 实例化渲染watcher时传递的 updateComponent
+      // 用户watcher 可能是 key 或者一个读取this.key的函数
+      // 触发读取操作 被setter拦截进行依赖收集
       value = this.getter.call(vm, vm)
     } catch (e) {
       if (this.user) {
@@ -125,13 +132,15 @@ export default class Watcher {
 
   /**
    * Add a dependency to this directive.
+   * 将dep放到watcher中
    */
-  addDep (dep: Dep) {
+    addDep (dep: Dep) {
     const id = dep.id
     if (!this.newDepIds.has(id)) {
       this.newDepIds.add(id)
       this.newDeps.push(dep)
       if (!this.depIds.has(id)) {
+        // 将watcher自己放到dep中 双向收集
         dep.addSub(this)
       }
     }
@@ -165,10 +174,17 @@ export default class Watcher {
   update () {
     /* istanbul ignore else */
     if (this.lazy) {
+    // 懒执行时走这里，比如 computed
+    // 将 dirty 置为 true，可以让 computedGetter 执行时重新计算 computed 回调函数的执行结果
       this.dirty = true
     } else if (this.sync) {
+    // 同步执行，在使用 vm.$watch 或者 watch 选项时可以传一个 sync 选项，
+    // 当为 true 时在数据更新时该 watcher 就不走异步更新队列，直接执行 this.run 
+    // 方法进行更新
+    // 这个属性在官方文档中没有出现
       this.run()
     } else {
+      // 将当前watcher放到watcher队列 通常走这里
       queueWatcher(this)
     }
   }
@@ -192,6 +208,7 @@ export default class Watcher {
         const oldValue = this.value
         this.value = value
         if (this.user) {
+          // 用户watcher 在执行一下watch回调
           const info = `callback for watcher "${this.expression}"`
           invokeWithErrorHandling(this.cb, this.vm, [value, oldValue], this.vm, info)
         } else {

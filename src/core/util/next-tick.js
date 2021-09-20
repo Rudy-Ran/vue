@@ -11,6 +11,10 @@ const callbacks = []
 let pending = false
 
 function flushCallbacks () {
+  // 只会同时存在一个 flushCallbacks函数
+  // 1. 将pending 再次置为false 表示下一个flushCallbacks函数可以进入浏览器的异步任务队列了
+  // 2. 清空callback数组
+  // 3. 执行callbacks数组中的函数 （ flushSchedulerQueue 、用户自己调用 this.$nextTick 传递的回调函数） 
   pending = false
   const copies = callbacks.slice(0)
   callbacks.length = 0
@@ -86,6 +90,8 @@ if (typeof Promise !== 'undefined' && isNative(Promise)) {
 
 export function nextTick (cb?: Function, ctx?: Object) {
   let _resolve
+  // 将nextTick的回调函数用try catch包装一层 方便异常捕获
+  // 然后将包装后的函数放到这个callback数组中
   callbacks.push(() => {
     if (cb) {
       try {

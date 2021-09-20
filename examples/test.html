@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Vue 源码解读</title>
+</head>
+
+<body>
+  <div id="app">
+    {{ msg }}
+    <child :text="msg"></child>
+  </div>
+  <script src="../dist/vue.js"></script>
+  <script>
+    debugger
+    Vue.component('child',{
+      template:'<div>{{title}},{{text}}</div>',
+      props:{
+        text:String
+      },
+      data(){
+        return {
+          title:'123'
+        }
+      }
+    })
+    new Vue({
+      el: '#app',
+      data: {
+        msg: 'hello vue'
+      }
+    })
+
+  </script>
+</body>
+
+</html>

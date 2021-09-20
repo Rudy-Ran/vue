@@ -45,6 +45,7 @@ export class Observer {
     this.vmCount = 0
     def(value, '__ob__', this)
     if (Array.isArray(value)) {
+      // 处理数组响应式
       if (hasProto) {
         protoAugment(value, arrayMethods)
       } else {
@@ -52,6 +53,7 @@ export class Observer {
       }
       this.observeArray(value)
     } else {
+      // 处理对象响应式
       this.walk(value)
     }
   }
@@ -72,6 +74,7 @@ export class Observer {
    * Observe a list of Array items.
    */
   observeArray (items: Array<any>) {
+    // 遍历数组每一项进行观察（响应式处理）
     for (let i = 0, l = items.length; i < l; i++) {
       observe(items[i])
     }
@@ -86,6 +89,7 @@ export class Observer {
  */
 function protoAugment (target, src: Object) {
   /* eslint-disable no-proto */
+  // 用通过增强的数组方法，覆盖默认的原型方法，之后你在执行那七个数组方法就有了依赖更新通知的能力，已达到实现数组响应式的目的
   target.__proto__ = src
   /* eslint-enable no-proto */
 }
@@ -93,6 +97,7 @@ function protoAugment (target, src: Object) {
 /**
  * Augment a target Object or Array by defining
  * hidden properties.
+ * 没有原型链，将增强的七个方法直接复制到数组对象上
  */
 /* istanbul ignore next */
 function copyAugment (target: Object, src: Object, keys: Array<string>) {
@@ -106,12 +111,15 @@ function copyAugment (target: Object, src: Object, keys: Array<string>) {
  * Attempt to create an observer instance for a value,
  * returns the new observer if successfully observed,
  * or the existing observer if the value already has one.
+ * 响应式处理的入口 
  */
 export function observe (value: any, asRootData: ?boolean): Observer | void {
+  // 判断要处理的响应式数据是否是对象 不是对象结束
   if (!isObject(value) || value instanceof VNode) {
     return
   }
   let ob: Observer | void
+  // 如果存在 __ob__ 表示已经被响应式处理过了 直接把结果赋值给ob
   if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
     ob = value.__ob__
   } else if (
@@ -121,6 +129,7 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
     Object.isExtensible(value) &&
     !value._isVue
   ) {
+    // 进行响应式处理
     ob = new Observer(value)
   }
   if (asRootData && ob) {
@@ -139,8 +148,9 @@ export function defineReactive (
   customSetter?: ?Function,
   shallow?: boolean
 ) {
+  // 实例化 dep 一个key对应一个dep
   const dep = new Dep()
-
+  // 获取属性描述符
   const property = Object.getOwnPropertyDescriptor(obj, key)
   if (property && property.configurable === false) {
     return
@@ -152,17 +162,23 @@ export function defineReactive (
   if ((!getter || setter) && arguments.length === 2) {
     val = obj[key]
   }
-
+  // 通过递归的方式处理value为对象的情况 即处理嵌套对象
   let childOb = !shallow && observe(val)
+  // 拦截obj[key]的访问和设置
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
+    // 拦截obj.key 的访问进行依赖收集
     get: function reactiveGetter () {
       const value = getter ? getter.call(obj) : val
+      // 依赖收集
       if (Dep.target) {
+        // 读取时进行的依赖收集 将dep放到watcher中 也将watcher添加到dep中
         dep.depend()
         if (childOb) {
+          // 对嵌套对象也进行依赖收集
           childOb.dep.depend()
+          // 处理数组情况
           if (Array.isArray(value)) {
             dependArray(value)
           }
@@ -170,9 +186,12 @@ export function defineReactive (
       }
       return value
     },
+    // 拦截obj.key = newValue的操作
     set: function reactiveSetter (newVal) {
+      // 首先获取老值
       const value = getter ? getter.call(obj) : val
       /* eslint-disable no-self-compare */
+      // 相等返回
       if (newVal === value || (newVal !== newVal && value !== value)) {
         return
       }
@@ -181,13 +200,17 @@ export function defineReactive (
         customSetter()
       }
       // #7981: for accessor properties without setter
+      // 只读返回
       if (getter && !setter) return
+      // 设置新值
       if (setter) {
         setter.call(obj, newVal)
       } else {
         val = newVal
       }
+      // 对新值做响应式处理
       childOb = !shallow && observe(newVal)
+      // 当响应式数据更新时 依赖通知更新 
       dep.notify()
     }
   })
@@ -264,8 +287,9 @@ export function del (target: Array<any> | Object, key: any) {
 /**
  * Collect dependencies on array elements when the array is touched, since
  * we cannot intercept array element access like property getters.
+ * 处理数组选项为对象的情况，对其进行依赖收集 因为前面的处理都无法对数组项为对象的元素进行依赖收集
  */
-function dependArray (value: Array<any>) {
+function  dependArray (value: Array<any>) {
   for (let e, i = 0, l = value.length; i < l; i++) {
     e = value[i]
     e && e.__ob__ && e.__ob__.dep.depend()

@@ -12,8 +12,14 @@ export function initProvide (vm: Component) {
       : provide
   }
 }
-
+/**
+ * 解析inject选项
+ * 1. 得到{key : value}形式的配置对象
+ * 2. 对解析结果做响应式处理
+ * @param {*} vm 
+ */
 export function initInjections (vm: Component) {
+  // 从配置项上解析 inject选项，最后得到result[key] = val 的结果
   const result = resolveInject(vm.$options.inject, vm)
   if (result) {
     toggleObserving(false)
@@ -29,6 +35,7 @@ export function initInjections (vm: Component) {
           )
         })
       } else {
+        // 对解析的结果做响应式处理，将每个key代理到vue实例上
         defineReactive(vm, key, result[key])
       }
     })
@@ -43,13 +50,15 @@ export function resolveInject (inject: any, vm: Component): ?Object {
     const keys = hasSymbol
       ? Reflect.ownKeys(inject)
       : Object.keys(inject)
-
+    // 遍历inject选项中key组成的数组
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i]
       // #6574 in case the inject object is observed...
       if (key === '__ob__') continue
-      const provideKey = inject[key].from
+      // 获取from属性
+      const provideKey = inject[key].from 
       let source = vm
+      // 从祖代组件的配置项中找到provide选项，从而找到对应key值
       while (source) {
         if (source._provided && hasOwn(source._provided, provideKey)) {
           result[key] = source._provided[provideKey]
@@ -57,7 +66,9 @@ export function resolveInject (inject: any, vm: Component): ?Object {
         }
         source = source.$parent
       }
+      // 如果没有找到
       if (!source) {
+        // 设置默认值
         if ('default' in inject[key]) {
           const provideDefault = inject[key].default
           result[key] = typeof provideDefault === 'function'

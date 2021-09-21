@@ -227,11 +227,14 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
   ) {
     warn(`Cannot set reactive property on undefined, null, or primitive value: ${(target: any)}`)
   }
+  // 处理数组 Vue.set(arr,idx,val)
   if (Array.isArray(target) && isValidArrayIndex(key)) {
     target.length = Math.max(target.length, key)
+    // 利用数组的splice方法实现 
     target.splice(key, 1, val)
     return val
   }
+  // 处理对象上的情况
   if (key in target && !(key in Object.prototype)) {
     target[key] = val
     return val
@@ -248,7 +251,9 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
     target[key] = val
     return val
   }
+  // 对新属性设置getter和seter 读取时收集依赖 更新时触发依赖通知更新
   defineReactive(ob.value, key, val)
+  // 通知依赖更新
   ob.dep.notify()
   return val
 }
@@ -262,6 +267,7 @@ export function del (target: Array<any> | Object, key: any) {
   ) {
     warn(`Cannot delete reactive property on undefined, null, or primitive value: ${(target: any)}`)
   }
+  // 数组还是用 splice 方法实现删除元素
   if (Array.isArray(target) && isValidArrayIndex(key)) {
     target.splice(key, 1)
     return
@@ -274,13 +280,16 @@ export function del (target: Array<any> | Object, key: any) {
     )
     return
   }
+  // 处理对象上的情况
   if (!hasOwn(target, key)) {
     return
   }
+  // 使用delete 操作符删除对象上的属性
   delete target[key]
   if (!ob) {
     return
   }
+  // 触发依赖通知更新
   ob.dep.notify()
 }
 

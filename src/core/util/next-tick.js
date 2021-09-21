@@ -87,7 +87,7 @@ if (typeof Promise !== 'undefined' && isNative(Promise)) {
     setTimeout(flushCallbacks, 0)
   }
 }
-
+// Vue.nextTick(function(){})
 export function nextTick (cb?: Function, ctx?: Object) {
   let _resolve
   // 将nextTick的回调函数用try catch包装一层 方便异常捕获

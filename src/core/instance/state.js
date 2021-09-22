@@ -126,7 +126,7 @@ function initProps (vm: Component, propsOptions: Object) {
 
 function initData (vm: Component) {
   let data = vm.$options.data
-  // 保证后续处理的data是一个对象   
+  // 保证后续处理的data是一个对象
   data = vm._data = typeof data === 'function'
     ? getData(data, vm)
     : data || {}
@@ -374,7 +374,14 @@ export function stateMixin (Vue: Class<Component>) {
 
   Vue.prototype.$set = set
   Vue.prototype.$delete = del
-
+/**
+ * 创建watcher 返回unwatch 共完成如下5件事：
+ * 1.
+ * @param {*} expOrFn
+ * @param {*} cb
+ * @param {*} options
+ * @returns
+ */
   Vue.prototype.$watch = function (
     expOrFn: string | Function,
     cb: any,
@@ -397,6 +404,7 @@ export function stateMixin (Vue: Class<Component>) {
       invokeWithErrorHandling(cb, vm, [watcher.value], vm, info)
       popTarget()
     }
+    // 返回一个unwatch函数 用户解除监听
     return function unwatchFn () {
       watcher.teardown()
     }

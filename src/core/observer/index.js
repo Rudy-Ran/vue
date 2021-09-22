@@ -111,7 +111,7 @@ function copyAugment (target: Object, src: Object, keys: Array<string>) {
  * Attempt to create an observer instance for a value,
  * returns the new observer if successfully observed,
  * or the existing observer if the value already has one.
- * 响应式处理的入口 
+ * 响应式处理的入口
  */
 export function observe (value: any, asRootData: ?boolean): Observer | void {
   // 判断要处理的响应式数据是否是对象 不是对象结束
@@ -210,7 +210,7 @@ export function defineReactive (
       }
       // 对新值做响应式处理
       childOb = !shallow && observe(newVal)
-      // 当响应式数据更新时 依赖通知更新 
+      // 当响应式数据更新时 依赖通知更新
       dep.notify()
     }
   })
@@ -220,6 +220,8 @@ export function defineReactive (
  * Set a property on an object. Adds the new property and
  * triggers change notification if the property doesn't
  * already exist.
+ * 通过Vue.set 或者 this.$set方法给target指定的key设置值 val
+ * 如果 target 是对象，并且 key 原本不存在，则为新 key 设置响应式，然后执行依赖通知
  */
 export function set (target: Array<any> | Object, key: any, val: any): any {
   if (process.env.NODE_ENV !== 'production' &&
@@ -230,7 +232,7 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
   // 处理数组 Vue.set(arr,idx,val)
   if (Array.isArray(target) && isValidArrayIndex(key)) {
     target.length = Math.max(target.length, key)
-    // 利用数组的splice方法实现 
+    // 利用数组的splice方法实现
     target.splice(key, 1, val)
     return val
   }

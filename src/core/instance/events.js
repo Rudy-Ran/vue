@@ -54,13 +54,16 @@ export function eventsMixin (Vue: Class<Component>) {
   Vue.prototype.$on = function (event: string | Array<string>, fn: Function): Component {
     const vm: Component = this
     if (Array.isArray(event)) {
+      // event 是由多个事件名组成的数组，则遍历这些事件，依次递归调用$on
       for (let i = 0, l = event.length; i < l; i++) {
         vm.$on(event[i], fn)
       }
     } else {
+      // 将注册事件和回调以键值对的形式存储到 vm._event 对象中 vm._event = {eventName: fn1}
       (vm._events[event] || (vm._events[event] = [])).push(fn)
       // optimize hook:event cost by using a boolean flag marked at registration
       // instead of a hash lookup
+      // TODO:这里不太理解
       if (hookRE.test(event)) {
         vm._hasHookEvent = true
       }

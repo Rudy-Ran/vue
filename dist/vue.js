@@ -998,7 +998,7 @@
    * Attempt to create an observer instance for a value,
    * returns the new observer if successfully observed,
    * or the existing observer if the value already has one.
-   * 响应式处理的入口 
+   * 响应式处理的入口
    */
   function observe (value, asRootData) {
     // 判断要处理的响应式数据是否是对象 不是对象结束
@@ -1097,7 +1097,7 @@
         }
         // 对新值做响应式处理
         childOb = !shallow && observe(newVal);
-        // 当响应式数据更新时 依赖通知更新 
+        // 当响应式数据更新时 依赖通知更新
         dep.notify();
       }
     });
@@ -1107,6 +1107,8 @@
    * Set a property on an object. Adds the new property and
    * triggers change notification if the property doesn't
    * already exist.
+   * 通过Vue.set 或者 this.$set方法给target指定的key设置值 val
+   * 如果 target 是对象，并且 key 原本不存在，则为新 key 设置响应式，然后执行依赖通知
    */
   function set (target, key, val) {
     if (
@@ -1117,7 +1119,7 @@
     // 处理数组 Vue.set(arr,idx,val)
     if (Array.isArray(target) && isValidArrayIndex(key)) {
       target.length = Math.max(target.length, key);
-      // 利用数组的splice方法实现 
+      // 利用数组的splice方法实现
       target.splice(key, 1, val);
       return val
     }
@@ -3871,13 +3873,16 @@
     Vue.prototype.$on = function (event, fn) {
       var vm = this;
       if (Array.isArray(event)) {
+        // event 是由多个事件名组成的数组，则遍历这些事件，依次递归调用$on
         for (var i = 0, l = event.length; i < l; i++) {
           vm.$on(event[i], fn);
         }
       } else {
+        // 将注册事件和回调以键值对的形式存储到 vm._event 对象中 vm._event = {eventName: fn1}
         (vm._events[event] || (vm._events[event] = [])).push(fn);
         // optimize hook:event cost by using a boolean flag marked at registration
         // instead of a hash lookup
+        // TODO:这里不太理解
         if (hookRE.test(event)) {
           vm._hasHookEvent = true;
         }
@@ -3935,7 +3940,9 @@
     Vue.prototype.$emit = function (event) {
       var vm = this;
       {
+        // 事件名转化成小写
         var lowerCaseEvent = event.toLowerCase();
+        // 意思是说，HTML 属性不区分大小写，所以你不能使用 v-on 监听小驼峰形式的事件名（eventName），而应该使用连字符形式的事件名（event-name)
         if (lowerCaseEvent !== event && vm._events[lowerCaseEvent]) {
           tip(
             "Event \"" + lowerCaseEvent + "\" is emitted in component " +
@@ -4807,7 +4814,7 @@
 
   function initData (vm) {
     var data = vm.$options.data;
-    // 保证后续处理的data是一个对象   
+    // 保证后续处理的data是一个对象
     data = vm._data = typeof data === 'function'
       ? getData(data, vm)
       : data || {};
@@ -5055,7 +5062,14 @@
 
     Vue.prototype.$set = set;
     Vue.prototype.$delete = del;
-
+  /**
+   * 创建watcher 返回unwatch 共完成如下5件事：
+   * 1.
+   * @param {*} expOrFn
+   * @param {*} cb
+   * @param {*} options
+   * @returns
+   */
     Vue.prototype.$watch = function (
       expOrFn,
       cb,
@@ -5078,6 +5092,7 @@
         invokeWithErrorHandling(cb, vm, [watcher.value], vm, info);
         popTarget();
       }
+      // 返回一个unwatch函数 用户解除监听
       return function unwatchFn () {
         watcher.teardown();
       }
@@ -5235,11 +5250,33 @@
     }
     this._init(options);
   }
-
+  // 定义 Vue.prototype._init方法
   initMixin(Vue);
+  /**
+   * Vue.prototype.$data
+   * Vue.prototype.$props
+   * Vue.prototype.$set
+   * Vue.prototype.$delete
+   * Vue.prototype.$watch
+   */
   stateMixin(Vue);
+  /**
+   * Vue.prototype.$on
+   * Vue.prototype.$once
+   * Vue.prototype.$off
+   * Vue.prototype.$emit
+   */
   eventsMixin(Vue);
+  /**
+   * Vue.prototype._update
+   * Vue.prototype.$forceUpdate
+   * Vue.prototype.$destory
+   */
   lifecycleMixin(Vue);
+  /**
+   * Vue.prototype.$nextTick
+   * Vue.prototype._render
+   */
   renderMixin(Vue);
 
   /*  */

@@ -43,9 +43,11 @@ export class Observer {
     this.value = value
     this.dep = new Dep()
     this.vmCount = 0
+    // 添加__ob__属性表示被响应式处理过
     def(value, '__ob__', this)
     if (Array.isArray(value)) {
       // 处理数组响应式
+      // hasProto 是否有__proto__属性
       if (hasProto) {
         protoAugment(value, arrayMethods)
       } else {

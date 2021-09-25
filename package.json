@@ -40,12 +40,10 @@
     "bench:ssr": "npm run build:ssr && node benchmarks/ssr/renderToString.js && node benchmarks/ssr/renderToStream.js",
     "release": "bash scripts/release.sh",
     "release:weex": "bash scripts/release-weex.sh",
-    "release:note": "node scripts/gen-release-note.js",
-    "commit": "git-cz"
+    "release:note": "node scripts/gen-release-note.js"
   },
   "gitHooks": {
-    "pre-commit": "lint-staged",
-    "commit-msg": "node scripts/verify-commit-msg.js"
+    "pre-commit": "lint-staged"
   },
   "lint-staged": {
     "*.js": [

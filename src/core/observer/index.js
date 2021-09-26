@@ -33,6 +33,7 @@ export function toggleObserving (value: boolean) {
  * object. Once attached, the observer converts the target
  * object's property keys into getter/setters that
  * collect dependencies and dispatch updates.
+ *
  */
 export class Observer {
   value: any;
@@ -41,11 +42,20 @@ export class Observer {
 
   constructor (value: any) {
     this.value = value
+    // 实例化一个dep
     this.dep = new Dep()
     this.vmCount = 0
+    // 在value对象上设置 __ob__属性
     def(value, '__ob__', this)
     if (Array.isArray(value)) {
       // 处理数组响应式
+      /**
+       * hasProto = '__proto__' in {}
+       * 用于判断对象是否存在 __proto__ 属性，通过 obj.__proto__ 可以访问对象的原型链
+       * 但由于 __proto__ 不是标准属性，所以有些浏览器不支持，比如 IE6-10，Opera10.1
+       * 为什么要判断，是因为一会儿要通过 __proto__ 操作数据的原型链
+       * 覆盖数组默认的七个原型方法，以实现数组响应式
+       */
       if (hasProto) {
         protoAugment(value, arrayMethods)
       } else {
@@ -62,6 +72,7 @@ export class Observer {
    * Walk through all properties and convert them into
    * getter/setters. This method should only be called when
    * value type is Object.
+   * 给对象的每个key设置响应式
    */
   walk (obj: Object) {
     const keys = Object.keys(obj)
@@ -74,7 +85,7 @@ export class Observer {
    * Observe a list of Array items.
    */
   observeArray (items: Array<any>) {
-    // 遍历数组每一项进行观察（响应式处理）
+    // 遍历数组每一项进行观察 处理数组元素为对象的情况
     for (let i = 0, l = items.length; i < l; i++) {
       observe(items[i])
     }
@@ -112,9 +123,10 @@ function copyAugment (target: Object, src: Object, keys: Array<string>) {
  * returns the new observer if successfully observed,
  * or the existing observer if the value already has one.
  * 响应式处理的入口
+ * 为对象创建观察者实例 如果对象已经被观察过 则返回已有的观察者实例 否则创建新的观察者实例
  */
 export function observe (value: any, asRootData: ?boolean): Observer | void {
-  // 判断要处理的响应式数据是否是对象 不是对象结束
+  // 非对象和VNode实例不做响应式处理
   if (!isObject(value) || value instanceof VNode) {
     return
   }
@@ -140,6 +152,9 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
 
 /**
  * Define a reactive property on an Object.
+ * 拦截 obj[key] 的读取和设置操作
+ *  1、在第一次读取时收集依赖，比如执行 render 函数生成虚拟 DOM 时会有读取操作
+ *  2、在更新时设置新值并通知依赖更新
  */
 export function defineReactive (
   obj: Object,
@@ -200,7 +215,7 @@ export function defineReactive (
         customSetter()
       }
       // #7981: for accessor properties without setter
-      // 只读返回
+      // setter 不存在说明该属性是一个只读属性，直接 return
       if (getter && !setter) return
       // 设置新值
       if (setter) {

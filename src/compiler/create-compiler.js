@@ -10,6 +10,7 @@ export function createCompilerCreator (baseCompile: Function): Function {
       template: string,
       options?: CompilerOptions
     ): CompiledResult {
+      // 已平台特有的编译配置为原型创建编译选项对象
       const finalOptions = Object.create(baseOptions)
       const errors = []
       const tips = []
@@ -57,7 +58,7 @@ export function createCompilerCreator (baseCompile: Function): Function {
       }
 
       finalOptions.warn = warn
-
+      // 重点：调用核心编译函数 传递模板字符串和最终的编译选项 得到编译结果
       const compiled = baseCompile(template.trim(), finalOptions)
       if (process.env.NODE_ENV !== 'production') {
         detectErrors(compiled.ast, warn)

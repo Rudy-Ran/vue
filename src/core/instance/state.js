@@ -85,7 +85,9 @@ function initProps (vm: Component, propsOptions: Object) {
   if (!isRoot) {
     toggleObserving(false)
   }
+  // 遍历props对象
   for (const key in propsOptions) {
+    // 缓存key
     keys.push(key)
     const value = validateProp(key, propsOptions, propsData, vm)
     /* istanbul ignore else */
@@ -126,10 +128,11 @@ function initProps (vm: Component, propsOptions: Object) {
 
 function initData (vm: Component) {
   let data = vm.$options.data
-  // 保证后续处理的data是一个对象
+  // 保证后续处理的data是一个对象 data如果是函数就获取返回的对象
   data = vm._data = typeof data === 'function'
     ? getData(data, vm)
     : data || {}
+  // 不是对象 抛出一个错误
   if (!isPlainObject(data)) {
     data = {}
     process.env.NODE_ENV !== 'production' && warn(
@@ -204,11 +207,13 @@ function initComputed (vm: Component, computed: Object) {
 
     if (!isSSR) {
       // create internal watcher for the computed property.
-      // 实例化一个watcher computed其实就是通过watcher实现的
+      // 为computed属性创建 watcher实例 computed其实就是通过watcher实现的
+
       watchers[key] = new Watcher(
         vm,
         getter || noop,
         noop,
+        // 配置项 computed默认是懒执行
         computedWatcherOptions
       )
     }
@@ -217,9 +222,11 @@ function initComputed (vm: Component, computed: Object) {
     // component prototype. We only need to define computed properties defined
     // at instantiation here.
     if (!(key in vm)) {
+      // 代理computed对象中额的属性到vm实例
       defineComputed(vm, key, userDef)
     } else if (process.env.NODE_ENV !== 'production') {
       if (key in vm.$data) {
+         // 非生产环境有一个判重处理，computed 对象中的属性不能和 data、props 中的属性相同
         warn(`The computed property "${key}" is already defined in data.`, vm)
       } else if (vm.$options.props && key in vm.$options.props) {
         warn(`The computed property "${key}" is already defined as a prop.`, vm)
@@ -264,7 +271,7 @@ export function defineComputed (
 
 function createComputedGetter (key) {
   return function computedGetter () {
-    // 拿到watcher
+    // 得到key对应的watcher
     const watcher = this._computedWatchers && this._computedWatchers[key]
     if (watcher) {
       // 执行computed.key的函数，获取得到的结果赋值给watch.value
@@ -287,7 +294,12 @@ function createGetterInvoker(fn) {
     return fn.call(this, this)
   }
 }
-
+/**
+ * 做了三件事
+ *
+ * @param {*} vm
+ * @param {*} methods
+ */
 function initMethods (vm: Component, methods: Object) {
   const props = vm.$options.props
   // 判重处理 methods中的key不能和props中的key重复
@@ -377,9 +389,9 @@ export function stateMixin (Vue: Class<Component>) {
 /**
  * 创建watcher 返回unwatch 共完成如下5件事：
  * 1.
- * @param {*} expOrFn
- * @param {*} cb
- * @param {*} options
+ * @param {*} expOrFn key
+ * @param {*} cb      key对应的回调
+ * @param {*} options 配置选项
  * @returns
  */
   Vue.prototype.$watch = function (
@@ -388,7 +400,7 @@ export function stateMixin (Vue: Class<Component>) {
     options?: Object
   ): Function {
     const vm: Component = this
-    // 处理cb是对象的情况 保证后续处理中 cb肯定是一个函数
+    // 处理cb是对象的情况 保证后续处理中 cb肯定是一个函数  因为用户调用 vm.$watch 时设置的 cb 可能是对象
     if (isPlainObject(cb)) {
       return createWatcher(vm, expOrFn, cb, options)
     }

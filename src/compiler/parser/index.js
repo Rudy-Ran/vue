@@ -63,10 +63,14 @@ export function createASTElement (
   parent: ASTElement | void
 ): ASTElement {
   return {
+    // 节点类型
     type: 1,
     tag,
+    // 属性数组
     attrsList: attrs,
+    // 属性对象
     attrsMap: makeAttrsMap(attrs),
+    // 原始属性对象
     rawAttrsMap: {},
     parent,
     children: []
@@ -81,17 +85,23 @@ export function parse (
   options: CompilerOptions
 ): ASTElement | void {
   warn = options.warn || baseWarn
-
+  // 是否为pre标签
   platformIsPreTag = options.isPreTag || no
+  // 获取必须使用props进行绑定的属性
   platformMustUseProp = options.mustUseProp || no
+  // 获取标签命名空间
   platformGetTagNamespace = options.getTagNamespace || no
+  // 是否是保留标签
   const isReservedTag = options.isReservedTag || no
+  // 判断一个元素是一个组件
   maybeComponent = (el: ASTElement) => !!(
     el.component ||
     el.attrsMap[':is'] ||
     el.attrsMap['v-bind:is'] ||
     !(el.attrsMap.is ? isReservedTag(el.attrsMap.is) : isReservedTag(el.tag))
   )
+  // 分别获取 options.modules 下的 class、model、style 三个模块中的 transformNode、preTransformNode、postTransformNode 方法
+
   transforms = pluckModuleFunction(options.modules, 'transformNode')
   preTransforms = pluckModuleFunction(options.modules, 'preTransformNode')
   postTransforms = pluckModuleFunction(options.modules, 'postTransformNode')
@@ -101,6 +111,7 @@ export function parse (
   const stack = []
   const preserveWhitespace = options.preserveWhitespace !== false
   const whitespaceOption = options.whitespace
+   // 根节点，以 root 为根，处理后的节点都会按照层级挂载到 root 下，最后 return 的就是 root，一个 ast 语法树
   let root
   let currentParent
   let inVPre = false
@@ -204,7 +215,7 @@ export function parse (
       )
     }
   }
-
+  // 解析html模板字符串 处理所有标签以及标签上的属性
   parseHTML(template, {
     warn,
     expectHTML: options.expectHTML,
@@ -217,6 +228,7 @@ export function parse (
     start (tag, attrs, unary, start, end) {
       // check namespace.
       // inherit parent ns if there is one
+      // 检查命名空间 如果存在 则继承父命名空间
       const ns = (currentParent && currentParent.ns) || platformGetTagNamespace(tag)
 
       // handle IE svg bug
@@ -224,21 +236,24 @@ export function parse (
       if (isIE && ns === 'svg') {
         attrs = guardIESVGBug(attrs)
       }
-
+      // 创建当前标签的AST对象
       let element: ASTElement = createASTElement(tag, attrs, currentParent)
+      // 设置命名空间
       if (ns) {
         element.ns = ns
       }
-
+      // 这段在非生产环境下会走，在 ast 对象上添加 一些 属性，比如 start、end
       if (process.env.NODE_ENV !== 'production') {
         if (options.outputSourceRange) {
           element.start = start
           element.end = end
+          // 将属性数组解析成 { attrName: { name: attrName, value: attrVal, start, end }, ... } 形式的对象
           element.rawAttrsMap = element.attrsList.reduce((cumulated, attr) => {
             cumulated[attr.name] = attr
             return cumulated
           }, {})
         }
+        // 验证属性名的有效性
         attrs.forEach(attr => {
           if (invalidAttributeRE.test(attr.name)) {
             warn(
@@ -252,7 +267,7 @@ export function parse (
           }
         })
       }
-
+       // 非服务端渲染的情况下，模版中不应该出现 style、script 标签
       if (isForbiddenTag(element) && !isServerRendering()) {
         element.forbidden = true
         process.env.NODE_ENV !== 'production' && warn(
@@ -269,26 +284,34 @@ export function parse (
       }
 
       if (!inVPre) {
+        // 判断element 是否存在 v-pre指令 存在设置element.pre = true
         processPre(element)
         if (element.pre) {
           inVPre = true
         }
       }
+      // 存在pre标签则 inPre 为true
       if (platformIsPreTag(element.tag)) {
         inPre = true
       }
       if (inVPre) {
+        // 说明标签上存在 v-pre 指令，这样的节点只会渲染一次，将节点上的属性都设置到 el.attrs 数组对象中，作为静态属性，数据更新时不会渲染这部分内容
         processRawAttrs(element)
       } else if (!element.processed) {
         // structural directives
+        // 处理v-for element.for = 可迭代对象 element.alias = 别名
         processFor(element)
+        // 处理v-if v-else-if v-else 得到 element.if = "exp"，element.elseif = exp, element.else = true
+        // v-if 属性会额外在 element.ifConditions 数组中添加 { exp, block } 对象
         processIf(element)
+        // 处理 v-once 指令，得到 element.once = true
         processOnce(element)
       }
-
+      // root不存在表示当前处理的就是根元素
       if (!root) {
         root = element
         if (process.env.NODE_ENV !== 'production') {
+          // 检查根元素，对根元素有一些限制，比如：不能使用 slot 和 template 作为根元素，也不能在有状态组件的根元素上使用 v-for 指令
           checkRootConstraints(root)
         }
       }
@@ -489,7 +512,7 @@ function processRef (el) {
     el.refInFor = checkInFor(el)
   }
 }
-
+// 处理v-for
 export function processFor (el: ASTElement) {
   let exp
   if ((exp = getAndRemoveAttr(el, 'v-for'))) {

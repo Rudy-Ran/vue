@@ -485,6 +485,7 @@
 
   /**
    * Check if a string starts with $ or _
+   * $和_键被保留 不能使用
    */
   function isReserved (str) {
     var c = (str + '').charCodeAt(0);
@@ -926,14 +927,24 @@
    * object. Once attached, the observer converts the target
    * object's property keys into getter/setters that
    * collect dependencies and dispatch updates.
+   *
    */
   var Observer = function Observer (value) {
     this.value = value;
+    // 实例化一个dep
     this.dep = new Dep();
     this.vmCount = 0;
+    // 在value对象上设置 __ob__属性
     def(value, '__ob__', this);
     if (Array.isArray(value)) {
       // 处理数组响应式
+      /**
+       * hasProto = '__proto__' in {}
+       * 用于判断对象是否存在 __proto__ 属性，通过 obj.__proto__ 可以访问对象的原型链
+       * 但由于 __proto__ 不是标准属性，所以有些浏览器不支持，比如 IE6-10，Opera10.1
+       * 为什么要判断，是因为一会儿要通过 __proto__ 操作数据的原型链
+       * 覆盖数组默认的七个原型方法，以实现数组响应式
+       */
       if (hasProto) {
         protoAugment(value, arrayMethods);
       } else {
@@ -950,6 +961,7 @@
    * Walk through all properties and convert them into
    * getter/setters. This method should only be called when
    * value type is Object.
+   * 给对象的每个key设置响应式
    */
   Observer.prototype.walk = function walk (obj) {
     var keys = Object.keys(obj);
@@ -962,7 +974,7 @@
    * Observe a list of Array items.
    */
   Observer.prototype.observeArray = function observeArray (items) {
-    // 遍历数组每一项进行观察（响应式处理）
+    // 遍历数组每一项进行观察 处理数组元素为对象的情况
     for (var i = 0, l = items.length; i < l; i++) {
       observe(items[i]);
     }
@@ -998,10 +1010,11 @@
    * Attempt to create an observer instance for a value,
    * returns the new observer if successfully observed,
    * or the existing observer if the value already has one.
-   * 响应式处理的入口 
+   * 响应式处理的入口
+   * 为对象创建观察者实例 如果对象已经被观察过 则返回已有的观察者实例 否则创建新的观察者实例
    */
   function observe (value, asRootData) {
-    // 判断要处理的响应式数据是否是对象 不是对象结束
+    // 非对象和VNode实例不做响应式处理
     if (!isObject(value) || value instanceof VNode) {
       return
     }
@@ -1027,6 +1040,9 @@
 
   /**
    * Define a reactive property on an Object.
+   * 拦截 obj[key] 的读取和设置操作
+   *  1、在第一次读取时收集依赖，比如执行 render 函数生成虚拟 DOM 时会有读取操作
+   *  2、在更新时设置新值并通知依赖更新
    */
   function defineReactive (
     obj,
@@ -1087,7 +1103,7 @@
           customSetter();
         }
         // #7981: for accessor properties without setter
-        // 只读返回
+        // setter 不存在说明该属性是一个只读属性，直接 return
         if (getter && !setter) { return }
         // 设置新值
         if (setter) {
@@ -1097,7 +1113,7 @@
         }
         // 对新值做响应式处理
         childOb = !shallow && observe(newVal);
-        // 当响应式数据更新时 依赖通知更新 
+        // 当响应式数据更新时 依赖通知更新
         dep.notify();
       }
     });
@@ -1107,6 +1123,8 @@
    * Set a property on an object. Adds the new property and
    * triggers change notification if the property doesn't
    * already exist.
+   * 通过Vue.set 或者 this.$set方法给target指定的key设置值 val
+   * 如果 target 是对象，并且 key 原本不存在，则为新 key 设置响应式，然后执行依赖通知
    */
   function set (target, key, val) {
     if (
@@ -1117,7 +1135,7 @@
     // 处理数组 Vue.set(arr,idx,val)
     if (Array.isArray(target) && isValidArrayIndex(key)) {
       target.length = Math.max(target.length, key);
-      // 利用数组的splice方法实现 
+      // 利用数组的splice方法实现
       target.splice(key, 1, val);
       return val
     }
@@ -3871,13 +3889,16 @@
     Vue.prototype.$on = function (event, fn) {
       var vm = this;
       if (Array.isArray(event)) {
+        // event 是由多个事件名组成的数组，则遍历这些事件，依次递归调用$on
         for (var i = 0, l = event.length; i < l; i++) {
           vm.$on(event[i], fn);
         }
       } else {
+        // 将注册事件和回调以键值对的形式存储到 vm._event 对象中 vm._event = {eventName: fn1}
         (vm._events[event] || (vm._events[event] = [])).push(fn);
         // optimize hook:event cost by using a boolean flag marked at registration
         // instead of a hash lookup
+        // TODO:这里不太理解
         if (hookRE.test(event)) {
           vm._hasHookEvent = true;
         }
@@ -4767,7 +4788,9 @@
     if (!isRoot) {
       toggleObserving(false);
     }
+    // 遍历props对象
     var loop = function ( key ) {
+      // 缓存key
       keys.push(key);
       var value = validateProp(key, propsOptions, propsData, vm);
       /* istanbul ignore else */
@@ -4807,10 +4830,11 @@
 
   function initData (vm) {
     var data = vm.$options.data;
-    // 保证后续处理的data是一个对象   
+    // 保证后续处理的data是一个对象 data如果是函数就获取返回的对象
     data = vm._data = typeof data === 'function'
       ? getData(data, vm)
       : data || {};
+    // 不是对象 抛出一个错误
     if (!isPlainObject(data)) {
       data = {};
        warn(
@@ -4885,11 +4909,13 @@
 
       if (!isSSR) {
         // create internal watcher for the computed property.
-        // 实例化一个watcher computed其实就是通过watcher实现的
+        // 为computed属性创建 watcher实例 computed其实就是通过watcher实现的
+
         watchers[key] = new Watcher(
           vm,
           getter || noop,
           noop,
+          // 配置项 computed默认是懒执行
           computedWatcherOptions
         );
       }
@@ -4898,9 +4924,11 @@
       // component prototype. We only need to define computed properties defined
       // at instantiation here.
       if (!(key in vm)) {
+        // 代理computed对象中额的属性到vm实例
         defineComputed(vm, key, userDef);
       } else {
         if (key in vm.$data) {
+           // 非生产环境有一个判重处理，computed 对象中的属性不能和 data、props 中的属性相同
           warn(("The computed property \"" + key + "\" is already defined in data."), vm);
         } else if (vm.$options.props && key in vm.$options.props) {
           warn(("The computed property \"" + key + "\" is already defined as a prop."), vm);
@@ -4945,7 +4973,7 @@
 
   function createComputedGetter (key) {
     return function computedGetter () {
-      // 拿到watcher
+      // 得到key对应的watcher
       var watcher = this._computedWatchers && this._computedWatchers[key];
       if (watcher) {
         // 执行computed.key的函数，获取得到的结果赋值给watch.value
@@ -4968,7 +4996,12 @@
       return fn.call(this, this)
     }
   }
-
+  /**
+   * 做了三件事
+   *
+   * @param {*} vm
+   * @param {*} methods
+   */
   function initMethods (vm, methods) {
     var props = vm.$options.props;
     // 判重处理 methods中的key不能和props中的key重复
@@ -5055,14 +5088,21 @@
 
     Vue.prototype.$set = set;
     Vue.prototype.$delete = del;
-
+  /**
+   * 创建watcher 返回unwatch 共完成如下5件事：
+   * 1.
+   * @param {*} expOrFn key
+   * @param {*} cb      key对应的回调
+   * @param {*} options 配置选项
+   * @returns
+   */
     Vue.prototype.$watch = function (
       expOrFn,
       cb,
       options
     ) {
       var vm = this;
-      // 处理cb是对象的情况 保证后续处理中 cb肯定是一个函数
+      // 处理cb是对象的情况 保证后续处理中 cb肯定是一个函数  因为用户调用 vm.$watch 时设置的 cb 可能是对象
       if (isPlainObject(cb)) {
         return createWatcher(vm, expOrFn, cb, options)
       }
@@ -5078,6 +5118,7 @@
         invokeWithErrorHandling(cb, vm, [watcher.value], vm, info);
         popTarget();
       }
+      // 返回一个unwatch函数 用户解除监听
       return function unwatchFn () {
         watcher.teardown();
       }
@@ -5235,11 +5276,33 @@
     }
     this._init(options);
   }
-
+  // 定义 Vue.prototype._init方法
   initMixin(Vue);
+  /**
+   * Vue.prototype.$data
+   * Vue.prototype.$props
+   * Vue.prototype.$set
+   * Vue.prototype.$delete
+   * Vue.prototype.$watch
+   */
   stateMixin(Vue);
+  /**
+   * Vue.prototype.$on
+   * Vue.prototype.$once
+   * Vue.prototype.$off
+   * Vue.prototype.$emit
+   */
   eventsMixin(Vue);
+  /**
+   * Vue.prototype._update
+   * Vue.prototype.$forceUpdate
+   * Vue.prototype.$destory
+   */
   lifecycleMixin(Vue);
+  /**
+   * Vue.prototype.$nextTick
+   * Vue.prototype._render
+   */
   renderMixin(Vue);
 
   /*  */
@@ -9506,33 +9569,43 @@
     var re = shouldDecodeNewlines ? encodedAttrWithNewLines : encodedAttr;
     return value.replace(re, function (match) { return decodingMap[match]; })
   }
-
+  // 通过循环遍历 html模板字符串 依次处理其中各个标签 以及标签上的属性
   function parseHTML (html, options) {
     var stack = [];
     var expectHTML = options.expectHTML;
+    // 是否自闭合标签
     var isUnaryTag = options.isUnaryTag || no;
+    // 是否可以只有开始标签
     var canBeLeftOpenTag = options.canBeLeftOpenTag || no;
     var index = 0;
     var last, lastTag;
     while (html) {
       last = html;
       // Make sure we're not in a plaintext content element like script/style
+      // 确保不是在 script、style、textarea 这样的纯文本元素中
       if (!lastTag || !isPlainTextElement(lastTag)) {
+        // 找第一个<
         var textEnd = html.indexOf('<');
+        // === 0 表示在开头找到了
         if (textEnd === 0) {
+          // 分别处理可能找到的注释标签、条件注释标签、Doctype、开始标签、结束标签
+          // 每处理完一种情况，就会截断（continue）循环，并且重置 html 字符串，将处理过的标签截掉，下一次循环处理剩余的 html 字符串模版
           // Comment:
           if (comment.test(html)) {
+            // 注释标签结束的索引
             var commentEnd = html.indexOf('-->');
 
             if (commentEnd >= 0) {
               if (options.shouldKeepComment) {
+                // 得到注释内容 注释的开始索引 结束索引
                 options.comment(html.substring(4, commentEnd), index, index + commentEnd + 3);
               }
+              // 调整html和index变量
               advance(commentEnd + 3);
               continue
             }
           }
-
+          // 处理条件注释标签：<!--[if IE]>
           // http://en.wikipedia.org/wiki/Conditional_comment#Downlevel-revealed_conditional_comment
           if (conditionalComment.test(html)) {
             var conditionalEnd = html.indexOf(']>');
@@ -9549,17 +9622,22 @@
             advance(doctypeMatch[0].length);
             continue
           }
-
+          /**
+           * 处理开始标签和结束标签是这个函数的核心
+           * 这两部分就是在构造element ast
+           */
           // End tag:
           var endTagMatch = html.match(endTag);
           if (endTagMatch) {
             var curIndex = index;
             advance(endTagMatch[0].length);
+            // 处理结束标签
             parseEndTag(endTagMatch[1], curIndex, index);
             continue
           }
 
           // Start tag:
+          // 处理开始标签，比如 <div id="app">，startTagMatch = { tagName: 'div', attrs: [[xx], ...], start: index }
           var startTagMatch = parseStartTag();
           if (startTagMatch) {
             handleStartTag(startTagMatch);
@@ -9639,10 +9717,13 @@
       index += n;
       html = html.substring(n);
     }
-
+    // 解析开始标签
     function parseStartTag () {
       var start = html.match(startTagOpen);
       if (start) {
+        /**
+         * start = ['<div',div],index:0
+         */
         var match = {
           tagName: start[1],
           attrs: [],
@@ -9650,12 +9731,14 @@
         };
         advance(start[0].length);
         var end, attr;
+        // 处理开始标签内的各个属性 并将这些属性放到match.attrs数组中
         while (!(end = html.match(startTagClose)) && (attr = html.match(dynamicArgAttribute) || html.match(attribute))) {
           attr.start = index;
           advance(attr[0].length);
           attr.end = index;
           match.attrs.push(attr);
         }
+        // 开始标签的结束 end = '>' 或 end = ' />'
         if (end) {
           match.unarySlash = end[1];
           advance(end[0].length);
@@ -9664,7 +9747,13 @@
         }
       }
     }
-
+    /**
+     * 进一步处理开始标签的解析结果 --- match对象
+     * 处理属性 match.attrs，如果不是自闭合标签，则将标签信息放到 stack 数组，待将来处理到它的闭合标签时再将其弹出 stack，表示该标签处理完毕，这时标签的所有信息都在 element ast 对象上了
+     * 接下来调用 options.start 方法处理标签，并根据标签信息生成 element ast
+     * 以及处理开始标签上的属性和指令，最后将 element ast 放入 stack 数组
+     * @param {*} match
+     */
     function handleStartTag (match) {
       var tagName = match.tagName;
       var unarySlash = match.unarySlash;
@@ -9677,17 +9766,20 @@
           parseEndTag(tagName);
         }
       }
-
+      // 一元标签 <h3/>
       var unary = isUnaryTag(tagName) || !!unarySlash;
 
       var l = match.attrs.length;
       var attrs = new Array(l);
+      // 遍历标签所有属性
       for (var i = 0; i < l; i++) {
         var args = match.attrs[i];
+        // 比如 args[3] => 'id'，args[4] => '='，args[5] => 'app'
         var value = args[3] || args[4] || args[5] || '';
         var shouldDecodeNewlines = tagName === 'a' && args[1] === 'href'
           ? options.shouldDecodeNewlinesForHref
           : options.shouldDecodeNewlines;
+        // 解析出来一个 name:value attrs[i] = { id: 'app' }
         attrs[i] = {
           name: args[1],
           value: decodeAttr(value, shouldDecodeNewlines)
@@ -9697,7 +9789,8 @@
           attrs[i].end = args.end;
         }
       }
-
+      // 如果不是自闭合标签，则将标签信息放到 stack 数组中，待将来处理到它的闭合标签时再将其弹出 stack
+      // 如果是自闭合标签，则标签信息就没必要进入 stack 了，直接处理众多属性，将他们都设置到 element ast 对象上，就没有处理 结束标签的那一步了，这一步在处理开始标签的过程中就进行了
       if (!unary) {
         stack.push({ tag: tagName, lowerCasedTag: tagName.toLowerCase(), attrs: attrs, start: match.start, end: match.end });
         lastTag = tagName;
@@ -9707,13 +9800,14 @@
         options.start(tagName, attrs, unary, match.start, match.end);
       }
     }
-
+    // 解析结束标签
     function parseEndTag (tagName, start, end) {
       var pos, lowerCasedTagName;
       if (start == null) { start = index; }
       if (end == null) { end = index; }
 
       // Find the closest opened tag of the same type
+      // 倒序遍历stack数组 找到第一个和当前结束标签相同的标签，该标签就是结束标签对应的开始标签的描述对象
       if (tagName) {
         lowerCasedTagName = tagName.toLowerCase();
         for (pos = stack.length - 1; pos >= 0; pos--) {
@@ -9802,10 +9896,14 @@
     parent
   ) {
     return {
+      // 节点类型
       type: 1,
       tag: tag,
+      // 属性数组
       attrsList: attrs,
+      // 属性对象
       attrsMap: makeAttrsMap(attrs),
+      // 原始属性对象
       rawAttrsMap: {},
       parent: parent,
       children: []
@@ -9820,17 +9918,23 @@
     options
   ) {
     warn$2 = options.warn || baseWarn;
-
+    // 是否为pre标签
     platformIsPreTag = options.isPreTag || no;
+    // 获取必须使用props进行绑定的属性
     platformMustUseProp = options.mustUseProp || no;
+    // 获取标签命名空间
     platformGetTagNamespace = options.getTagNamespace || no;
+    // 是否是保留标签
     var isReservedTag = options.isReservedTag || no;
+    // 判断一个元素是一个组件
     maybeComponent = function (el) { return !!(
       el.component ||
       el.attrsMap[':is'] ||
       el.attrsMap['v-bind:is'] ||
       !(el.attrsMap.is ? isReservedTag(el.attrsMap.is) : isReservedTag(el.tag))
     ); };
+    // 分别获取 options.modules 下的 class、model、style 三个模块中的 transformNode、preTransformNode、postTransformNode 方法
+
     transforms = pluckModuleFunction(options.modules, 'transformNode');
     preTransforms = pluckModuleFunction(options.modules, 'preTransformNode');
     postTransforms = pluckModuleFunction(options.modules, 'postTransformNode');
@@ -9840,6 +9944,7 @@
     var stack = [];
     var preserveWhitespace = options.preserveWhitespace !== false;
     var whitespaceOption = options.whitespace;
+     // 根节点，以 root 为根，处理后的节点都会按照层级挂载到 root 下，最后 return 的就是 root，一个 ast 语法树
     var root;
     var currentParent;
     var inVPre = false;
@@ -9943,7 +10048,7 @@
         );
       }
     }
-
+    // 解析html模板字符串 处理所有标签以及标签上的属性
     parseHTML(template, {
       warn: warn$2,
       expectHTML: options.expectHTML,
@@ -9956,6 +10061,7 @@
       start: function start (tag, attrs, unary, start$1, end) {
         // check namespace.
         // inherit parent ns if there is one
+        // 检查命名空间 如果存在 则继承父命名空间
         var ns = (currentParent && currentParent.ns) || platformGetTagNamespace(tag);
 
         // handle IE svg bug
@@ -9963,21 +10069,24 @@
         if (isIE && ns === 'svg') {
           attrs = guardIESVGBug(attrs);
         }
-
+        // 创建当前标签的AST对象
         var element = createASTElement(tag, attrs, currentParent);
+        // 设置命名空间
         if (ns) {
           element.ns = ns;
         }
-
+        // 这段在非生产环境下会走，在 ast 对象上添加 一些 属性，比如 start、end
         {
           if (options.outputSourceRange) {
             element.start = start$1;
             element.end = end;
+            // 将属性数组解析成 { attrName: { name: attrName, value: attrVal, start, end }, ... } 形式的对象
             element.rawAttrsMap = element.attrsList.reduce(function (cumulated, attr) {
               cumulated[attr.name] = attr;
               return cumulated
             }, {});
           }
+          // 验证属性名的有效性
           attrs.forEach(function (attr) {
             if (invalidAttributeRE.test(attr.name)) {
               warn$2(
@@ -9991,7 +10100,7 @@
             }
           });
         }
-
+         // 非服务端渲染的情况下，模版中不应该出现 style、script 标签
         if (isForbiddenTag(element) && !isServerRendering()) {
           element.forbidden = true;
            warn$2(
@@ -10008,26 +10117,34 @@
         }
 
         if (!inVPre) {
+          // 判断element 是否存在 v-pre指令 存在设置element.pre = true
           processPre(element);
           if (element.pre) {
             inVPre = true;
           }
         }
+        // 存在pre标签则 inPre 为true
         if (platformIsPreTag(element.tag)) {
           inPre = true;
         }
         if (inVPre) {
+          // 说明标签上存在 v-pre 指令，这样的节点只会渲染一次，将节点上的属性都设置到 el.attrs 数组对象中，作为静态属性，数据更新时不会渲染这部分内容
           processRawAttrs(element);
         } else if (!element.processed) {
           // structural directives
+          // 处理v-for element.for = 可迭代对象 element.alias = 别名
           processFor(element);
+          // 处理v-if v-else-if v-else 得到 element.if = "exp"，element.elseif = exp, element.else = true
+          // v-if 属性会额外在 element.ifConditions 数组中添加 { exp, block } 对象
           processIf(element);
+          // 处理 v-once 指令，得到 element.once = true
           processOnce(element);
         }
-
+        // root不存在表示当前处理的就是根元素
         if (!root) {
           root = element;
           {
+            // 检查根元素，对根元素有一些限制，比如：不能使用 slot 和 template 作为根元素，也不能在有状态组件的根元素上使用 v-for 指令
             checkRootConstraints(root);
           }
         }
@@ -10228,7 +10345,7 @@
       el.refInFor = checkInFor(el);
     }
   }
-
+  // 处理v-for
   function processFor (el) {
     var exp;
     if ((exp = getAndRemoveAttr(el, 'v-for'))) {
@@ -10817,13 +10934,21 @@
 
   var baseOptions = {
     expectHTML: true,
+    // 处理class style v-model
     modules: modules$1,
+    // 处理指令
     directives: directives$1,
+    // 是否是pre标签
     isPreTag: isPreTag,
+    // 是否是自闭合标签
     isUnaryTag: isUnaryTag,
+    // 规定一些应该使用 props进行绑定的属性
     mustUseProp: mustUseProp,
+    // 可以只写开始标签的标签，结束标签浏览器会自动补全
     canBeLeftOpenTag: canBeLeftOpenTag,
+    // 是否是保留标签 html + svg
     isReservedTag: isReservedTag,
+    // 获取标签命名空间
     getTagNamespace: getTagNamespace,
     staticKeys: genStaticKeys(modules$1)
   };
@@ -11896,6 +12021,12 @@
       options,
       vm
     ) {
+      // 获取传递进来的编译选项 就是在entry-runtime-with-compiler 文件中传递的下面的一些配置
+      // outputSourceRange: "development" !== 'production',
+      // shouldDecodeNewlines,
+      // shouldDecodeNewlinesForHref,
+      // delimiters: options.delimiters,
+      // comments: options.comments
       options = extend({}, options);
       var warn$1 = options.warn || warn;
       delete options.warn;
@@ -11906,6 +12037,8 @@
         try {
           new Function('return 1');
         } catch (e) {
+          // 看起来你在一个 CSP 不安全的环境中使用完整版的 Vue.js，模版编译器不能工作在这样的环境中。
+          // 考虑放宽策略限制或者预编译你的 template 为 render 函数
           if (e.toString().match(/unsafe-eval|CSP/)) {
             warn$1(
               'It seems you are using the standalone build of Vue.js in an ' +
@@ -11919,6 +12052,7 @@
       }
 
       // check cache
+      // 如果有缓存 则跳过编译 直接从缓存中获取上次编译的结果
       var key = options.delimiters
         ? String(options.delimiters) + template
         : template;
@@ -11996,6 +12130,7 @@
         template,
         options
       ) {
+        // 已平台特有的编译配置为原型创建编译选项对象
         var finalOptions = Object.create(baseOptions);
         var errors = [];
         var tips = [];
@@ -12043,7 +12178,7 @@
         }
 
         finalOptions.warn = warn;
-
+        // 重点：调用核心编译函数 传递模板字符串和最终的编译选项 得到编译结果
         var compiled = baseCompile(template.trim(), finalOptions);
         {
           detectErrors(compiled.ast, warn);

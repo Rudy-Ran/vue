@@ -26,6 +26,12 @@ export function createCompileToFunctionFn (compile: Function): Function {
     options?: CompilerOptions,
     vm?: Component
   ): CompiledFunctionResult {
+    // 获取传递进来的编译选项 就是在entry-runtime-with-compiler 文件中传递的下面的一些配置
+    // outputSourceRange: process.env.NODE_ENV !== 'production',
+    // shouldDecodeNewlines,
+    // shouldDecodeNewlinesForHref,
+    // delimiters: options.delimiters,
+    // comments: options.comments
     options = extend({}, options)
     const warn = options.warn || baseWarn
     delete options.warn
@@ -36,6 +42,8 @@ export function createCompileToFunctionFn (compile: Function): Function {
       try {
         new Function('return 1')
       } catch (e) {
+        // 看起来你在一个 CSP 不安全的环境中使用完整版的 Vue.js，模版编译器不能工作在这样的环境中。
+        // 考虑放宽策略限制或者预编译你的 template 为 render 函数
         if (e.toString().match(/unsafe-eval|CSP/)) {
           warn(
             'It seems you are using the standalone build of Vue.js in an ' +
@@ -49,6 +57,7 @@ export function createCompileToFunctionFn (compile: Function): Function {
     }
 
     // check cache
+    // 如果有缓存 则跳过编译 直接从缓存中获取上次编译的结果
     const key = options.delimiters
       ? String(options.delimiters) + template
       : template

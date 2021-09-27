@@ -127,6 +127,7 @@ export function parse (
 
   function closeElement (element) {
     trimEndingWhitespace(element)
+    // 如果元素没有被处理过  processElement 方法处理节点上的众多属性
     if (!inVPre && !element.processed) {
       element = processElement(element, options)
     }
@@ -317,9 +318,16 @@ export function parse (
       }
 
       if (!unary) {
+        // 非自闭合标签，通过 currentParent 记录当前元素，下一个元素在处理的时候，就知道自己的父元素是谁
         currentParent = element
         stack.push(element)
       } else {
+        /**
+          * 说明当前元素为自闭合标签，主要做了 3 件事：
+          *   1、如果元素没有被处理过，即 el.processed 为 false，则调用 processElement 方法处理节点上的众多属性
+          *   2、让自己和父元素产生关系，将自己放到父元素的 children 数组中，并设置自己的 parent 属性为 currentParent
+          *   3、设置自己的子元素，将自己所有非插槽的子元素放到自己的 children 数组中
+         */
         closeElement(element)
       }
     },

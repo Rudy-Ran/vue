@@ -1011,7 +1011,10 @@
    * returns the new observer if successfully observed,
    * or the existing observer if the value already has one.
    * 响应式处理的入口
+<<<<<<< HEAD
    * 为对象创建观察者实例 如果对象已经被观察过 则返回已有的观察者实例 否则创建新的观察者实例
+=======
+>>>>>>> 517e44cf973442caa67c1b18ac73a0f93b59bb5f
    */
   function observe (value, asRootData) {
     // 非对象和VNode实例不做响应式处理
@@ -3956,7 +3959,9 @@
     Vue.prototype.$emit = function (event) {
       var vm = this;
       {
+        // 事件名转化成小写
         var lowerCaseEvent = event.toLowerCase();
+        // 意思是说，HTML 属性不区分大小写，所以你不能使用 v-on 监听小驼峰形式的事件名（eventName），而应该使用连字符形式的事件名（event-name)
         if (lowerCaseEvent !== event && vm._events[lowerCaseEvent]) {
           tip(
             "Event \"" + lowerCaseEvent + "\" is emitted in component " +
@@ -4830,7 +4835,11 @@
 
   function initData (vm) {
     var data = vm.$options.data;
+<<<<<<< HEAD
     // 保证后续处理的data是一个对象 data如果是函数就获取返回的对象
+=======
+    // 保证后续处理的data是一个对象
+>>>>>>> 517e44cf973442caa67c1b18ac73a0f93b59bb5f
     data = vm._data = typeof data === 'function'
       ? getData(data, vm)
       : data || {};
@@ -5091,9 +5100,15 @@
   /**
    * 创建watcher 返回unwatch 共完成如下5件事：
    * 1.
+<<<<<<< HEAD
    * @param {*} expOrFn key
    * @param {*} cb      key对应的回调
    * @param {*} options 配置选项
+=======
+   * @param {*} expOrFn
+   * @param {*} cb
+   * @param {*} options
+>>>>>>> 517e44cf973442caa67c1b18ac73a0f93b59bb5f
    * @returns
    */
     Vue.prototype.$watch = function (

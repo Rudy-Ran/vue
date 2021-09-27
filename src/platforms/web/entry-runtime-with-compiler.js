@@ -15,12 +15,14 @@ const idToTemplate = cached(id => {
 })
 
 const mount = Vue.prototype.$mount
+// 就做了一件事，得到组件的渲染函数 将其设置到this.$options上
 Vue.prototype.$mount = function (
   el?: string | Element,
   hydrating?: boolean
 ): Component {
+  // 挂载点
   el = el && query(el)
-
+  // 挂载点不能是body或者html
   /* istanbul ignore if */
   if (el === document.body || el === document.documentElement) {
     process.env.NODE_ENV !== 'production' && warn(
@@ -31,10 +33,14 @@ Vue.prototype.$mount = function (
 
   const options = this.$options
   // resolve template/el and convert to render function
+  /**
+   * 如果用户提供了render函数 则直接跳过编译阶段 否则进入编译阶段
+   */
   if (!options.render) {
     let template = options.template
     if (template) {
       if (typeof template === 'string') {
+        // { template: '#app' }，template 是一个 id 选择器，则获取该元素的 innerHtml 作为模版
         if (template.charAt(0) === '#') {
           template = idToTemplate(template)
           /* istanbul ignore if */
@@ -45,6 +51,7 @@ Vue.prototype.$mount = function (
             )
           }
         }
+        // tempelte 是正常元素 获取其innerHTML
       } else if (template.nodeType) {
         template = template.innerHTML
       } else {
@@ -53,15 +60,17 @@ Vue.prototype.$mount = function (
         }
         return this
       }
+      // 不存在template 则使用el元素
     } else if (el) {
       template = getOuterHTML(el)
     }
+    // 模板准备就绪 准备编译
     if (template) {
       /* istanbul ignore if */
       if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
         mark('compile')
       }
-
+      // 编译模板 得到render 和staticRenderFns
       const { render, staticRenderFns } = compileToFunctions(template, {
         outputSourceRange: process.env.NODE_ENV !== 'production',
         shouldDecodeNewlines,
@@ -79,6 +88,7 @@ Vue.prototype.$mount = function (
       }
     }
   }
+  // 执行挂载
   return mount.call(this, el, hydrating)
 }
 

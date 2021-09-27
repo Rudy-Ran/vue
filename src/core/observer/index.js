@@ -45,6 +45,7 @@ export class Observer {
     // 实例化一个dep
     this.dep = new Dep()
     this.vmCount = 0
+<<<<<<< HEAD
     // 在value对象上设置 __ob__属性
     def(value, '__ob__', this)
     if (Array.isArray(value)) {
@@ -56,6 +57,13 @@ export class Observer {
        * 为什么要判断，是因为一会儿要通过 __proto__ 操作数据的原型链
        * 覆盖数组默认的七个原型方法，以实现数组响应式
        */
+=======
+    // 添加__ob__属性表示被响应式处理过
+    def(value, '__ob__', this)
+    if (Array.isArray(value)) {
+      // 处理数组响应式
+      // hasProto 是否有__proto__属性
+>>>>>>> 517e44cf973442caa67c1b18ac73a0f93b59bb5f
       if (hasProto) {
         protoAugment(value, arrayMethods)
       } else {

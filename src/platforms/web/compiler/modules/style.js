@@ -8,8 +8,10 @@ import {
   baseWarn
 } from 'compiler/helpers'
 
+// 从 el 上解析出静态的 style 属性和动态绑定的 style 属性
 function transformNode (el: ASTElement, options: CompilerOptions) {
   const warn = options.warn || baseWarn
+  // 获取静态style
   const staticStyle = getAndRemoveAttr(el, 'style')
   if (staticStyle) {
     /* istanbul ignore if */
@@ -27,7 +29,7 @@ function transformNode (el: ASTElement, options: CompilerOptions) {
     }
     el.staticStyle = JSON.stringify(parseStyleText(staticStyle))
   }
-
+  // 获取动态style属性
   const styleBinding = getBindingAttr(el, 'style', false /* getStatic */)
   if (styleBinding) {
     el.styleBinding = styleBinding

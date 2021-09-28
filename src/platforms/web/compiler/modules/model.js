@@ -22,14 +22,23 @@ import {
   addIfCondition,
   createASTElement
 } from 'compiler/parser/index'
-
+/**
+ * 处理存在 v-model 的 input 标签，但没处理 v-model 属性
+ * 分别处理了 input 为 checkbox、radio 和 其它的情况
+ * input 具体是哪种情况由 el.ifConditions 中的条件来判断
+ * <input v-mode="test" :type="checkbox or radio or other(比如 text)" />
+ * @param {*} el
+ * @param {*} options
+ * @returns
+ */
 function preTransformNode (el: ASTElement, options: CompilerOptions) {
   if (el.tag === 'input') {
     const map = el.attrsMap
+    // 不存在v-model属性 直接结束
     if (!map['v-model']) {
       return
     }
-
+    // 获取type类型
     let typeBinding
     if (map[':type'] || map['v-bind:type']) {
       typeBinding = getBindingAttr(el, 'type')
@@ -43,13 +52,18 @@ function preTransformNode (el: ASTElement, options: CompilerOptions) {
       const ifConditionExtra = ifCondition ? `&&(${ifCondition})` : ``
       const hasElse = getAndRemoveAttr(el, 'v-else', true) != null
       const elseIfCondition = getAndRemoveAttr(el, 'v-else-if', true)
+      // 克隆一个新的el对象 分别处理 input为checkboxk radio 等情况
       // 1. checkbox
       const branch0 = cloneASTElement(el)
       // process for on the main node
+      // 处理v-for表达式 得到 branch0.for = arr, branch0.alias = item
       processFor(branch0)
+      // 在branch0.arrtsMap 和 branch0.attrsList 对象中添加 type属性
       addRawAttr(branch0, 'type', 'checkbox')
+      // 分别处理元素节点的 key、ref、插槽、自闭合的 slot 标签、动态组件、class、style、v-bind、v-on、其它指令和一些原生属性
       processElement(branch0, options)
-      branch0.processed = true // prevent it from double-processed
+      branch0.processed = true // prevent it from double-processed 编辑元素被处理过了
+      // 标记当前 input 是否为 checkbox
       branch0.if = `(${typeBinding})==='checkbox'` + ifConditionExtra
       addIfCondition(branch0, {
         exp: branch0.if,

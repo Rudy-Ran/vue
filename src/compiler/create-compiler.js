@@ -18,7 +18,7 @@ export function createCompilerCreator (baseCompile: Function): Function {
       let warn = (msg, range, tip) => {
         (tip ? tips : errors).push(msg)
       }
-
+      // 如果存在编译配置选项 则和baseOptions合并
       if (options) {
         if (process.env.NODE_ENV !== 'production' && options.outputSourceRange) {
           // $flow-disable-line
@@ -58,7 +58,7 @@ export function createCompilerCreator (baseCompile: Function): Function {
       }
 
       finalOptions.warn = warn
-      // 重点：调用核心编译函数 传递模板字符串和最终的编译选项 得到编译结果
+      // 重点：调用核心编译函数 传递模板字符串和最终的编译选项 得到编译结果  应该是一个render的字符串
       const compiled = baseCompile(template.trim(), finalOptions)
       if (process.env.NODE_ENV !== 'production') {
         detectErrors(compiled.ast, warn)

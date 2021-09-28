@@ -64,7 +64,7 @@ export function createCompileToFunctionFn (compile: Function): Function {
     if (cache[key]) {
       return cache[key]
     }
-
+    // 执行编译函数 得到编译结果
     // compile
     const compiled = compile(template, options)
 
@@ -97,6 +97,7 @@ export function createCompileToFunctionFn (compile: Function): Function {
     }
 
     // turn code into functions
+    // 将编译得到得到字符串代码转化成函数 通过new Function(code)实现
     const res = {}
     const fnGenErrors = []
     res.render = createFunction(compiled.render, fnGenErrors)
@@ -117,7 +118,7 @@ export function createCompileToFunctionFn (compile: Function): Function {
         )
       }
     }
-
+    // 缓存编译结果
     return (cache[key] = res)
   }
 }

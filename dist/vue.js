@@ -1011,10 +1011,7 @@
    * returns the new observer if successfully observed,
    * or the existing observer if the value already has one.
    * 响应式处理的入口
-<<<<<<< HEAD
    * 为对象创建观察者实例 如果对象已经被观察过 则返回已有的观察者实例 否则创建新的观察者实例
-=======
->>>>>>> 517e44cf973442caa67c1b18ac73a0f93b59bb5f
    */
   function observe (value, asRootData) {
     // 非对象和VNode实例不做响应式处理
@@ -4835,11 +4832,7 @@
 
   function initData (vm) {
     var data = vm.$options.data;
-<<<<<<< HEAD
     // 保证后续处理的data是一个对象 data如果是函数就获取返回的对象
-=======
-    // 保证后续处理的data是一个对象
->>>>>>> 517e44cf973442caa67c1b18ac73a0f93b59bb5f
     data = vm._data = typeof data === 'function'
       ? getData(data, vm)
       : data || {};
@@ -5100,15 +5093,9 @@
   /**
    * 创建watcher 返回unwatch 共完成如下5件事：
    * 1.
-<<<<<<< HEAD
    * @param {*} expOrFn key
    * @param {*} cb      key对应的回调
    * @param {*} options 配置选项
-=======
-   * @param {*} expOrFn
-   * @param {*} cb
-   * @param {*} options
->>>>>>> 517e44cf973442caa67c1b18ac73a0f93b59bb5f
    * @returns
    */
     Vue.prototype.$watch = function (
@@ -7281,7 +7268,18 @@
       ? ("_p(" + name + ",\"" + symbol + "\")")
       : symbol + name // mark the event as captured
   }
-
+  /**
+   * 处理事件属性，将事件属性添加到 el.events 对象或者 el.nativeEvents 对象中
+   * el.events[name] = [{ value, start, end, modifiers, dynamic }, ...]
+   * @param {*} el  ast 对象
+   * @param {*} name  事件名
+   * @param {*} value 事件回调函数名
+   * @param {*} modifiers 修饰符
+   * @param {*} important
+   * @param {*} warn 日志
+   * @param {*} range
+   * @param {*} dynamic 是否为动态属性
+   */
   function addHandler (
     el,
     name,
@@ -7325,6 +7323,7 @@
     }
 
     // check capture modifier
+    // 给带有 capture 修饰符的属性，加上 ! 标记
     if (modifiers.capture) {
       delete modifiers.capture;
       name = prependModifierMarker('!', name, dynamic);
@@ -9421,9 +9420,16 @@
   }
 
   /*  */
-
+  /**
+   * 处理元素上的class属性
+   * 静态class属性赋值给 el.staticClass
+   * 动态classs属性赋值给 el.classBinding
+   * @param {*} el
+   * @param {*} options
+   */
   function transformNode (el, options) {
     var warn = options.warn || baseWarn;
+    // 获取元素上静态 class 属性的值 xx，<div class="xx"></div>
     var staticClass = getAndRemoveAttr(el, 'class');
     if ( staticClass) {
       var res = parseText(staticClass, options.delimiters);
@@ -9440,6 +9446,7 @@
     if (staticClass) {
       el.staticClass = JSON.stringify(staticClass.replace(/\s+/g, ' ').trim());
     }
+    // 获取动态绑定的class的属性值 并赋值给el.classBinding
     var classBinding = getBindingAttr(el, 'class', false /* getStatic */);
     if (classBinding) {
       el.classBinding = classBinding;
@@ -9465,8 +9472,10 @@
 
   /*  */
 
+  // 从 el 上解析出静态的 style 属性和动态绑定的 style 属性
   function transformNode$1 (el, options) {
     var warn = options.warn || baseWarn;
+    // 获取静态style
     var staticStyle = getAndRemoveAttr(el, 'style');
     if (staticStyle) {
       /* istanbul ignore if */
@@ -9484,7 +9493,7 @@
       }
       el.staticStyle = JSON.stringify(parseStyleText(staticStyle));
     }
-
+    // 获取动态style属性
     var styleBinding = getBindingAttr(el, 'style', false /* getStatic */);
     if (styleBinding) {
       el.styleBinding = styleBinding;
@@ -9641,7 +9650,7 @@
            * 处理开始标签和结束标签是这个函数的核心
            * 这两部分就是在构造element ast
            */
-          // End tag:
+          // End tag: 处理结束标签 </div>
           var endTagMatch = html.match(endTag);
           if (endTagMatch) {
             var curIndex = index;
@@ -9665,7 +9674,14 @@
 
         var text = (void 0), rest = (void 0), next = (void 0);
         if (textEnd >= 0) {
+                /**
+         * 能走到这儿，说明虽然在 html 中匹配到到了 <xx，但是这不属于上述几种情况 它就只是一个普通的一段文本：<我是文本
+         * 于是从 html 中找到下一个 <，直到 <xx 是上述几种情况的标签，则结束
+         * 在这整个过程中一直在调整 textEnd 的值，作为 html 中下一个有效标签的开始位置
+         */
+        // 截取textEnd后面的内容
           rest = html.slice(textEnd);
+          // 截取文本内容，并找到有效标签的开始位置（textEnd）
           while (
             !endTag.test(rest) &&
             !startTagOpen.test(rest) &&
@@ -9673,26 +9689,31 @@
             !conditionalComment.test(rest)
           ) {
             // < in plain text, be forgiving and treat it as text
+            // 则认为 < 后面的内容为纯文本，然后在这些纯文本中再次找 <
             next = rest.indexOf('<', 1);
+            // 如果没找到 <，则直接结束循环
             if (next < 0) { break }
+            //  走到这儿说明在后续的字符串中找到了 <，索引位置为 textEn
             textEnd += next;
+            // 截取 html 字符串模版 textEnd 之后的内容赋值给 rest，继续判断之后的字符串是否存在标签
             rest = html.slice(textEnd);
           }
           text = html.substring(0, textEnd);
         }
-
+        // 没找到 < 说明 html就是一段文本
         if (textEnd < 0) {
           text = html;
         }
-
+        // 把文本内容截取掉
         if (text) {
           advance(text.length);
         }
-
+        // 处理文本
         if (options.chars && text) {
           options.chars(text, index - text.length, index);
         }
       } else {
+        //  处理 script、style、textarea 标签的闭合标签
         var endTagLength = 0;
         var stackedTag = lastTag.toLowerCase();
         var reStackedTag = reCache[stackedTag] || (reCache[stackedTag] = new RegExp('([\\s\\S]*?)(</' + stackedTag + '[^>]*>)', 'i'));
@@ -9781,7 +9802,7 @@
           parseEndTag(tagName);
         }
       }
-      // 一元标签 <h3/>
+      // 一元标签 <h3/> (自闭合)
       var unary = isUnaryTag(tagName) || !!unarySlash;
 
       var l = match.attrs.length;
@@ -9810,7 +9831,15 @@
         stack.push({ tag: tagName, lowerCasedTag: tagName.toLowerCase(), attrs: attrs, start: match.start, end: match.end });
         lastTag = tagName;
       }
-
+      /**
+       * 调用start方法 主要做了下面几件事
+       * 1.创建AST对象
+       * 2.处理存在v-model指令的input标签 分别处理 Input为 checkbox radio 其他的情况
+       * 3.处理标签上的众多指令 v-pre v-for v-if v-once
+       * 4.如果当前节点root不存在 则设置当前元素为根节点
+       * 5.如果当前元素为非自闭和标签则将自己push到 stack数组 并记录currentParent
+       * 6.如果是自闭和标签 表示标签处理结束了 让自己和父元素产生关系 并设置自己的子元素
+       */
       if (options.start) {
         options.start(tagName, attrs, unary, match.start, match.end);
       }
@@ -9834,7 +9863,7 @@
         // If no tag name is provided, clean shop
         pos = 0;
       }
-
+      //  如果在 stack 中一直没有找到相同的标签名，则 pos 就会 < 0，进行后面的 else 分支
       if (pos >= 0) {
         // Close all the open elements, up the stack
         for (var i = stack.length - 1; i >= pos; i--) {
@@ -9948,8 +9977,8 @@
       el.attrsMap['v-bind:is'] ||
       !(el.attrsMap.is ? isReservedTag(el.attrsMap.is) : isReservedTag(el.tag))
     ); };
-    // 分别获取 options.modules 下的 class、model、style 三个模块中的 transformNode、preTransformNode、postTransformNode 方法
-
+    // 分别获取 options.modules 下的 class、model、style 三个模块中的 transformNode、preTransformNode、postTransformNode 函数
+    // 负责处理节点上的 class style v-model
     transforms = pluckModuleFunction(options.modules, 'transformNode');
     preTransforms = pluckModuleFunction(options.modules, 'preTransformNode');
     postTransforms = pluckModuleFunction(options.modules, 'postTransformNode');
@@ -9974,8 +10003,9 @@
     }
 
     function closeElement (element) {
+      // 移除末尾空格
       trimEndingWhitespace(element);
-      // 如果元素没有被处理过  processElement 方法处理节点上的众多属性
+      // 当前元素不再 pre 节点内，并且也没有被处理过
       if (!inVPre && !element.processed) {
         element = processElement(element, options);
       }
@@ -10128,6 +10158,9 @@
         }
 
         // apply pre-transforms
+        // 在web平台上处理 存在v-model属性的input标签 但不处理v-model属性
+        // 分别处理了 input 为 checkbox、radio 和 其它的情况
+        // input 具体是哪种情况由 el.ifConditions 中的条件来判断
         for (var i = 0; i < preTransforms.length; i++) {
           element = preTransforms[i](element, options) || element;
         }
@@ -10167,6 +10200,7 @@
 
         if (!unary) {
           // 非自闭合标签，通过 currentParent 记录当前元素，下一个元素在处理的时候，就知道自己的父元素是谁
+          // 将当前标签的 ast 对象 push 到 stack 数组中，这里需要注意，在调用 options.start 方法之前也发生过一次 push 操作，那个 push 进来的是当前标签的一个基本配置信息
           currentParent = element;
           stack.push(element);
         } else {
@@ -10308,25 +10342,40 @@
       el.plain = true;
     }
   }
-
+  /**
+   *
+   * @param {*} element
+   * @param {*} options
+   * @returns
+   */
   function processElement (
     element,
     options
   ) {
+    //获取key属性 挂载ast上 el.key = val
     processKey(element);
 
     // determine whether this is a plain element after
     // removing structural attributes
+    // 确定element是否是一个普通元素
     element.plain = (
       !element.key &&
       !element.scopedSlots &&
       !element.attrsList.length
     );
-
+    // el.ref = val el.refInFor = boolean (ref 是否在v-for循环里)
     processRef(element);
+    // 处理作为插槽传递给组件的内容，得到  插槽名称、是否为动态插槽、作用域插槽的值，以及插槽中的所有子元素，子元素放到插槽对象的 children 属性中
     processSlotContent(element);
+    // 处理自闭合的 slot 标签，得到插槽名称 => el.slotName = xx
     processSlotOutlet(element);
+    // 处理动态组件，<component :is="compoName"></component>得到 el.component = compName，
+    // 以及标记是否存在内联模版，el.inlineTemplate = true of false
     processComponent(element);
+    // 为 element 对象分别执行 class、style、model 模块中的 transformNode 方法
+    // 不过 web 平台只有 class、style 模块有 transformNode 方法，分别用来处理 class 属性和 style 属性
+    // 得到 el.staticStyle、 el.styleBinding、el.staticClass、el.classBinding
+    // 分别存放静态 style 属性的值、动态 style 属性的值，以及静态 class 属性的值和动态 class 属性的值
     for (var i = 0; i < transforms.length; i++) {
       element = transforms[i](element, options) || element;
     }
@@ -10368,9 +10417,12 @@
       el.refInFor = checkInFor(el);
     }
   }
-  // 处理v-for
+  // 处理v-for 将结果设置到 el对象上
+  // 得到 el.for = 可迭代对象 如  arr
+  // el.alias = 别名 如 item
   function processFor (el) {
     var exp;
+    // 获取v-for属性的值 比如 item in arr
     if ((exp = getAndRemoveAttr(el, 'v-for'))) {
       var res = parseFor(exp);
       if (res) {
@@ -10387,9 +10439,11 @@
 
 
   function parseFor (exp) {
+    // 得到匹配后的结果 比如 ['item in  arr','item','arr']
     var inMatch = exp.match(forAliasRE);
     if (!inMatch) { return }
     var res = {};
+    // for 是一个迭代属性
     res.for = inMatch[2].trim();
     var alias = inMatch[1].trim().replace(stripParensRE, '');
     var iteratorMatch = alias.match(forIteratorRE);
@@ -10474,6 +10528,13 @@
 
   // handle content being passed to a component as slot,
   // e.g. <template slot="xxx">, <div slot-scope="xxx">
+  /**
+   * 处理作为插槽传递给组件的内容
+   * slotTarget =>插槽名
+   * slotTargetDynamic => 是否为动态插槽
+   * slotScope => 作用域插槽的值
+   * @param {*} el
+   */
   function processSlotContent (el) {
     var slotScope;
     if (el.tag === 'template') {
@@ -10520,10 +10581,12 @@
     {
       if (el.tag === 'template') {
         // v-slot on <template>
+        // 处理template上的slot  得到v-slot的值
         var slotBinding = getAndRemoveAttrByRegex(el, slotRE);
         if (slotBinding) {
           {
             if (el.slotTarget || el.slotScope) {
+               // 不同插槽语法禁止混合使用
               warn$2(
                 "Unexpected mixed usage of different slot syntaxes.",
                 el
@@ -10537,14 +10600,18 @@
               );
             }
           }
+          // 得到插槽的名称
           var ref = getSlotName(slotBinding);
           var name = ref.name;
           var dynamic = ref.dynamic;
           el.slotTarget = name;
+          // 是否为动态插槽
           el.slotTargetDynamic = dynamic;
+          // 作用域插槽的值
           el.slotScope = slotBinding.value || emptySlotScopeToken; // force it into a scoped slot for perf
         }
       } else {
+        // 处理组件上的v-slot
         // v-slot on component, denotes default slot
         var slotBinding$1 = getAndRemoveAttrByRegex(el, slotRE);
         if (slotBinding$1) {
@@ -10571,9 +10638,11 @@
           }
           // add the component's children to its default slot
           var slots = el.scopedSlots || (el.scopedSlots = {});
+          //
           var ref$1 = getSlotName(slotBinding$1);
           var name$1 = ref$1.name;
           var dynamic$1 = ref$1.dynamic;
+          // 创建一个template 标签的AST对象 用于容纳插槽的内容 父级是el
           var slotContainer = slots[name$1] = createASTElement('template', [], el);
           slotContainer.slotTarget = name$1;
           slotContainer.slotTargetDynamic = dynamic$1;
@@ -10643,20 +10712,29 @@
     for (i = 0, l = list.length; i < l; i++) {
       name = rawName = list[i].name;
       value = list[i].value;
+      // 如果该属性是一个指令
       if (dirRE.test(name)) {
         // mark element as dynamic
+        // 元素上存在了指令 将元素标记为动态元素
         el.hasBindings = true;
         // modifiers
+        // 解析修饰符 xx.lazy
         modifiers = parseModifiers(name.replace(dirRE, ''));
         // support .foo shorthand syntax for the .prop modifier
         if (modifiers) {
+          // 把修饰符 . 去掉得到干净的属性
           name = name.replace(modifierRE, '');
         }
+        // 处理v-bind指令 <div :id="test"></div>
         if (bindRE.test(name)) { // v-bind
+          // eg: id
           name = name.replace(bindRE, '');
+          // ed: test
           value = parseFilters(value);
+          // 是否为动态属性 <div :[id]="test"></div>
           isDynamic = dynamicArgRE.test(name);
           if (isDynamic) {
+            // 动态属性 去掉[]
             name = name.slice(1, -1);
           }
           if (
@@ -10668,6 +10746,7 @@
             );
           }
           if (modifiers) {
+            // .prop修饰符
             if (modifiers.prop && !isDynamic) {
               name = camelize(name);
               if (name === 'innerHtml') { name = 'innerHTML'; }
@@ -10675,6 +10754,7 @@
             if (modifiers.camel && !isDynamic) {
               name = camelize(name);
             }
+            // 处理.sync修饰符
             if (modifiers.sync) {
               syncGen = genAssignmentCode(value, "$event");
               if (!isDynamic) {
@@ -10716,18 +10796,23 @@
           if ((modifiers && modifiers.prop) || (
             !el.component && platformMustUseProp(el.tag, el.attrsMap.type, name)
           )) {
+             // 将属性对象添加到 el.props 数组中，表示这些属性必须通过 props 设置
             addProp(el, name, value, list[i], isDynamic);
           } else {
+            //  将属性添加到 el.attrs 数组或者 el.dynamicAttrs 数组
             addAttr(el, name, value, list[i], isDynamic);
           }
-        } else if (onRE.test(name)) { // v-on
+        } else if (onRE.test(name)) { // v-on 处理v-on事件
           name = name.replace(onRE, '');
           isDynamic = dynamicArgRE.test(name);
           if (isDynamic) {
             name = name.slice(1, -1);
           }
+          // 处理事件属性，将属性的信息添加到 el.events 或者 el.nativeEvents 对象上，格式：
+          // el.events = [{ value, start, end, modifiers, dynamic }, ...]
           addHandler(el, name, value, modifiers, false, warn$2, list[i], isDynamic);
-        } else { // normal directives
+        } else { // normal directives 其他的普通指令
+          // 得到 el.directives = [{name, rawName, value, arg, isDynamicArg, modifier, start, end }, ...]
           name = name.replace(dirRE, '');
           // parse arg
           var argMatch = name.match(argRE);
@@ -10746,6 +10831,7 @@
           }
         }
       } else {
+        // 当前属性不是指令
         // literal attribute
         {
           var res = parseText(value, delimiters);
@@ -10759,6 +10845,7 @@
             );
           }
         }
+        // 把属性对象放到el.attrs数组中 el.attrs = [{ name, value, start, end }]
         addAttr(el, name, JSON.stringify(value), list[i]);
         // #6887 firefox doesn't update muted state if set via attribute
         // even immediately after element creation
@@ -10854,14 +10941,23 @@
   }
 
   /*  */
-
+  /**
+   * 处理存在 v-model 的 input 标签，但没处理 v-model 属性
+   * 分别处理了 input 为 checkbox、radio 和 其它的情况
+   * input 具体是哪种情况由 el.ifConditions 中的条件来判断
+   * <input v-mode="test" :type="checkbox or radio or other(比如 text)" />
+   * @param {*} el
+   * @param {*} options
+   * @returns
+   */
   function preTransformNode (el, options) {
     if (el.tag === 'input') {
       var map = el.attrsMap;
+      // 不存在v-model属性 直接结束
       if (!map['v-model']) {
         return
       }
-
+      // 获取type类型
       var typeBinding;
       if (map[':type'] || map['v-bind:type']) {
         typeBinding = getBindingAttr(el, 'type');
@@ -10875,13 +10971,18 @@
         var ifConditionExtra = ifCondition ? ("&&(" + ifCondition + ")") : "";
         var hasElse = getAndRemoveAttr(el, 'v-else', true) != null;
         var elseIfCondition = getAndRemoveAttr(el, 'v-else-if', true);
+        // 克隆一个新的el对象 分别处理 input为checkboxk radio 等情况
         // 1. checkbox
         var branch0 = cloneASTElement(el);
         // process for on the main node
+        // 处理v-for表达式 得到 branch0.for = arr, branch0.alias = item
         processFor(branch0);
+        // 在branch0.arrtsMap 和 branch0.attrsList 对象中添加 type属性
         addRawAttr(branch0, 'type', 'checkbox');
+        // 分别处理元素节点的 key、ref、插槽、自闭合的 slot 标签、动态组件、class、style、v-bind、v-on、其它指令和一些原生属性
         processElement(branch0, options);
-        branch0.processed = true; // prevent it from double-processed
+        branch0.processed = true; // prevent it from double-processed 编辑元素被处理过了
+        // 标记当前 input 是否为 checkbox
         branch0.if = "(" + typeBinding + ")==='checkbox'" + ifConditionExtra;
         addIfCondition(branch0, {
           exp: branch0.if,
@@ -12082,7 +12183,7 @@
       if (cache[key]) {
         return cache[key]
       }
-
+      // 执行编译函数 得到编译结果
       // compile
       var compiled = compile(template, options);
 
@@ -12115,6 +12216,7 @@
       }
 
       // turn code into functions
+      // 将编译得到得到字符串代码转化成函数 通过new Function(code)实现
       var res = {};
       var fnGenErrors = [];
       res.render = createFunction(compiled.render, fnGenErrors);
@@ -12140,7 +12242,7 @@
           );
         }
       }
-
+      // 缓存编译结果
       return (cache[key] = res)
     }
   }
@@ -12161,7 +12263,7 @@
         var warn = function (msg, range, tip) {
           (tip ? tips : errors).push(msg);
         };
-
+        // 如果存在编译配置选项 则和baseOptions合并
         if (options) {
           if ( options.outputSourceRange) {
             // $flow-disable-line
@@ -12201,7 +12303,7 @@
         }
 
         finalOptions.warn = warn;
-        // 重点：调用核心编译函数 传递模板字符串和最终的编译选项 得到编译结果
+        // 重点：调用核心编译函数 传递模板字符串和最终的编译选项 得到编译结果  应该是一个render的字符串
         var compiled = baseCompile(template.trim(), finalOptions);
         {
           detectErrors(compiled.ast, warn);
@@ -12227,10 +12329,13 @@
     template,
     options
   ) {
+    // 把模板解析成AST
     var ast = parse(template.trim(), options);
+    // 优化 编译AST 为每个节点做静态标记
     if (options.optimize !== false) {
       optimize(ast, options);
     }
+    // 从AST生成渲染函数 类似  code.render = "_c('div',{attrs:{"id":"app"}},_l((arr),function(item){return _c('div',{key:item},[_v(_s(item))])}),0)"
     var code = generate(ast, options);
     return {
       ast: ast,
@@ -12265,14 +12370,15 @@
     var el = query(id);
     return el && el.innerHTML
   });
-
+  // 就做了一件事，得到组件的渲染函数 将其设置到this.$options上
   var mount = Vue.prototype.$mount;
   Vue.prototype.$mount = function (
     el,
     hydrating
   ) {
+    // 挂载点
     el = el && query(el);
-
+    // 挂载点不能是body或者html
     /* istanbul ignore if */
     if (el === document.body || el === document.documentElement) {
        warn(
@@ -12283,10 +12389,14 @@
 
     var options = this.$options;
     // resolve template/el and convert to render function
+    /**
+     * 如果用户提供了render函数 则直接跳过编译阶段 否则进入编译阶段
+     */
     if (!options.render) {
       var template = options.template;
       if (template) {
         if (typeof template === 'string') {
+          // { template: '#app' }，template 是一个 id 选择器，则获取该元素的 innerHtml 作为模版
           if (template.charAt(0) === '#') {
             template = idToTemplate(template);
             /* istanbul ignore if */
@@ -12297,6 +12407,7 @@
               );
             }
           }
+          // tempelte 是正常元素 获取其innerHTML
         } else if (template.nodeType) {
           template = template.innerHTML;
         } else {
@@ -12305,20 +12416,25 @@
           }
           return this
         }
+        // 不存在template 则使用el元素
       } else if (el) {
         template = getOuterHTML(el);
       }
+      // 模板准备就绪 准备编译
       if (template) {
         /* istanbul ignore if */
         if ( config.performance && mark) {
           mark('compile');
         }
-
+        // 编译模板 得到render 和staticRenderFns
         var ref = compileToFunctions(template, {
+          // 在非生产环境下，编译时记录标签属性在模版字符串中开始和结束的位置索引
           outputSourceRange: "development" !== 'production',
           shouldDecodeNewlines: shouldDecodeNewlines,
           shouldDecodeNewlinesForHref: shouldDecodeNewlinesForHref,
+          // 界定符 默认{{}}
           delimiters: options.delimiters,
+          // 是否保留注释
           comments: options.comments
         }, this);
         var render = ref.render;
@@ -12333,6 +12449,7 @@
         }
       }
     }
+    // 执行挂载
     return mount.call(this, el, hydrating)
   };
 

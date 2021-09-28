@@ -65,7 +65,18 @@ function prependModifierMarker (symbol: string, name: string, dynamic?: boolean)
     ? `_p(${name},"${symbol}")`
     : symbol + name // mark the event as captured
 }
-
+/**
+ * 处理事件属性，将事件属性添加到 el.events 对象或者 el.nativeEvents 对象中
+ * el.events[name] = [{ value, start, end, modifiers, dynamic }, ...]
+ * @param {*} el  ast 对象
+ * @param {*} name  事件名
+ * @param {*} value 事件回调函数名
+ * @param {*} modifiers 修饰符
+ * @param {*} important
+ * @param {*} warn 日志
+ * @param {*} range
+ * @param {*} dynamic 是否为动态属性
+ */
 export function addHandler (
   el: ASTElement,
   name: string,
@@ -109,6 +120,7 @@ export function addHandler (
   }
 
   // check capture modifier
+  // 给带有 capture 修饰符的属性，加上 ! 标记
   if (modifiers.capture) {
     delete modifiers.capture
     name = prependModifierMarker('!', name, dynamic)

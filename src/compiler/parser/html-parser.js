@@ -107,7 +107,7 @@ export function parseHTML (html, options) {
          * 处理开始标签和结束标签是这个函数的核心
          * 这两部分就是在构造element ast
          */
-        // End tag:
+        // End tag: 处理结束标签 </div>
         const endTagMatch = html.match(endTag)
         if (endTagMatch) {
           const curIndex = index
@@ -131,7 +131,14 @@ export function parseHTML (html, options) {
 
       let text, rest, next
       if (textEnd >= 0) {
+              /**
+       * 能走到这儿，说明虽然在 html 中匹配到到了 <xx，但是这不属于上述几种情况 它就只是一个普通的一段文本：<我是文本
+       * 于是从 html 中找到下一个 <，直到 <xx 是上述几种情况的标签，则结束
+       * 在这整个过程中一直在调整 textEnd 的值，作为 html 中下一个有效标签的开始位置
+       */
+      // 截取textEnd后面的内容
         rest = html.slice(textEnd)
+        // 截取文本内容，并找到有效标签的开始位置（textEnd）
         while (
           !endTag.test(rest) &&
           !startTagOpen.test(rest) &&
@@ -139,26 +146,31 @@ export function parseHTML (html, options) {
           !conditionalComment.test(rest)
         ) {
           // < in plain text, be forgiving and treat it as text
+          // 则认为 < 后面的内容为纯文本，然后在这些纯文本中再次找 <
           next = rest.indexOf('<', 1)
+          // 如果没找到 <，则直接结束循环
           if (next < 0) break
+          //  走到这儿说明在后续的字符串中找到了 <，索引位置为 textEn
           textEnd += next
+          // 截取 html 字符串模版 textEnd 之后的内容赋值给 rest，继续判断之后的字符串是否存在标签
           rest = html.slice(textEnd)
         }
         text = html.substring(0, textEnd)
       }
-
+      // 没找到 < 说明 html就是一段文本
       if (textEnd < 0) {
         text = html
       }
-
+      // 把文本内容截取掉
       if (text) {
         advance(text.length)
       }
-
+      // 处理文本
       if (options.chars && text) {
         options.chars(text, index - text.length, index)
       }
     } else {
+      //  处理 script、style、textarea 标签的闭合标签
       let endTagLength = 0
       const stackedTag = lastTag.toLowerCase()
       const reStackedTag = reCache[stackedTag] || (reCache[stackedTag] = new RegExp('([\\s\\S]*?)(</' + stackedTag + '[^>]*>)', 'i'))
@@ -247,7 +259,7 @@ export function parseHTML (html, options) {
         parseEndTag(tagName)
       }
     }
-    // 一元标签 <h3/>
+    // 一元标签 <h3/> (自闭合)
     const unary = isUnaryTag(tagName) || !!unarySlash
 
     const l = match.attrs.length
@@ -276,7 +288,15 @@ export function parseHTML (html, options) {
       stack.push({ tag: tagName, lowerCasedTag: tagName.toLowerCase(), attrs: attrs, start: match.start, end: match.end })
       lastTag = tagName
     }
-
+    /**
+     * 调用start方法 主要做了下面几件事
+     * 1.创建AST对象
+     * 2.处理存在v-model指令的input标签 分别处理 Input为 checkbox radio 其他的情况
+     * 3.处理标签上的众多指令 v-pre v-for v-if v-once
+     * 4.如果当前节点root不存在 则设置当前元素为根节点
+     * 5.如果当前元素为非自闭和标签则将自己push到 stack数组 并记录currentParent
+     * 6.如果是自闭和标签 表示标签处理结束了 让自己和父元素产生关系 并设置自己的子元素
+     */
     if (options.start) {
       options.start(tagName, attrs, unary, match.start, match.end)
     }
@@ -300,7 +320,7 @@ export function parseHTML (html, options) {
       // If no tag name is provided, clean shop
       pos = 0
     }
-
+    //  如果在 stack 中一直没有找到相同的标签名，则 pos 就会 < 0，进行后面的 else 分支
     if (pos >= 0) {
       // Close all the open elements, up the stack
       for (let i = stack.length - 1; i >= pos; i--) {

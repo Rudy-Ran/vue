@@ -13,9 +13,8 @@ const idToTemplate = cached(id => {
   const el = query(id)
   return el && el.innerHTML
 })
-
-const mount = Vue.prototype.$mount
 // 就做了一件事，得到组件的渲染函数 将其设置到this.$options上
+const mount = Vue.prototype.$mount
 Vue.prototype.$mount = function (
   el?: string | Element,
   hydrating?: boolean
@@ -72,10 +71,13 @@ Vue.prototype.$mount = function (
       }
       // 编译模板 得到render 和staticRenderFns
       const { render, staticRenderFns } = compileToFunctions(template, {
+        // 在非生产环境下，编译时记录标签属性在模版字符串中开始和结束的位置索引
         outputSourceRange: process.env.NODE_ENV !== 'production',
         shouldDecodeNewlines,
         shouldDecodeNewlinesForHref,
+        // 界定符 默认{{}}
         delimiters: options.delimiters,
+        // 是否保留注释
         comments: options.comments
       }, this)
       options.render = render

@@ -44,6 +44,7 @@ export function generate (
   ast: ASTElement | void,
   options: CompilerOptions
 ): CodegenResult {
+  // 实例化CodegenState对象 生成代码的时候需要用到其中的一些东西
   const state = new CodegenState(options)
   // fix #11483, Root level <script> tags should not be rendered.
   const code = ast ? (ast.tag === 'script' ? 'null' : genElement(ast, state)) : '_c("div")'
@@ -73,6 +74,8 @@ export function genElement (el: ASTElement, state: CodegenState): string {
   } else {
     // component or element
     let code
+    // 处理动态组件 生成动态组件的渲染函数
+    // 得到`_c(compName,data,children)`
     if (el.component) {
       code = genComponent(el.component, el, state)
     } else {
@@ -218,10 +221,12 @@ export function genFor (
 }
 
 export function genData (el: ASTElement, state: CodegenState): string {
+  // 节点属性组成的JSON字符串
   let data = '{'
 
   // directives first.
   // directives may mutate the el's other properties before they are generated.
+  // 先处理指令 因为指令可能在生成其他属性前改变这些属性
   const dirs = genDirectives(el, state)
   if (dirs) data += dirs + ','
 
@@ -311,6 +316,7 @@ function genDirectives (el: ASTElement, state: CodegenState): string | void {
   const dirs = el.directives
   if (!dirs) return
   let res = 'directives:['
+  // 标记 用于标记指令是否需要在运行时完成的任务 比如v-model的input事件
   let hasRuntime = false
   let i, l, dir, needRuntime
   for (i = 0, l = dirs.length; i < l; i++) {
@@ -575,6 +581,7 @@ function genComponent (
   el: ASTElement,
   state: CodegenState
 ): string {
+  // 获取所有子节点
   const children = el.inlineTemplate ? null : genChildren(el, state, true)
   return `_c(${componentName},${genData(el, state)}${
     children ? `,${children}` : ''

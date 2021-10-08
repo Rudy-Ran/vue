@@ -13,7 +13,7 @@ let uid = 0
 export default class Dep {
   static target: ?Watcher;
   id: number;
-  subs: Array<Watcher>;
+  subs: Array<Watcher>; //存储器 里面存放需要通知的watcher 
 
   constructor () {
     this.id = uid++

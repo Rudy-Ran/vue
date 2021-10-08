@@ -89,6 +89,7 @@ function initProps (vm: Component, propsOptions: Object) {
   for (const key in propsOptions) {
     // 缓存key
     keys.push(key)
+    // 获取props[key]的默认值
     const value = validateProp(key, propsOptions, propsData, vm)
     /* istanbul ignore else */
     if (process.env.NODE_ENV !== 'production') {

@@ -156,7 +156,7 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
  *  1、在第一次读取时收集依赖，比如执行 render 函数生成虚拟 DOM 时会有读取操作
  *  2、在更新时设置新值并通知依赖更新
  */
-export function defineReactive (
+export function  defineReactive (
   obj: Object,
   key: string,
   val: any,
@@ -178,7 +178,7 @@ export function defineReactive (
     val = obj[key]
   }
   // 通过递归的方式处理value为对象的情况 即处理嵌套对象
-  let childOb = !shallow && observe(val)
+  let childOb = !shallow && observe( )
   // 拦截obj[key]的访问和设置
   Object.defineProperty(obj, key, {
     enumerable: true,

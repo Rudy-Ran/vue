@@ -108,7 +108,7 @@ export function initInternalComponent (vm: Component, options: InternalComponent
   }
 }
 
-// 从构造函数上解析配置项
+// 从构造函数上解析配置项options
 export function resolveConstructorOptions (Ctor: Class<Component>) {
   // 从实例构造函数上获取选项
   let options = Ctor.options
@@ -118,7 +118,7 @@ export function resolveConstructorOptions (Ctor: Class<Component>) {
     // 缓存基类的配置选项
     const cachedSuperOptions = Ctor.superOptions
     if (superOptions !== cachedSuperOptions) {
-      // 如果不一致，说明基类的配置项发生了改变
+      // 如果不一致，说明基类的配置项发生了改变 需要重新设置
       // super option changed,
       // need to resolve new options.
       Ctor.superOptions = superOptions
@@ -140,9 +140,12 @@ export function resolveConstructorOptions (Ctor: Class<Component>) {
   return options
 }
 
+// 解析构造函数中后续被修改后者增加的选项
 function resolveModifiedOptions (Ctor: Class<Component>): ?Object {
   let modified
+  // 构造函数的选项
   const latest = Ctor.options
+   // 密封的构造函数选项，备份
   const sealed = Ctor.sealedOptions
   for (const key in latest) {
     if (latest[key] !== sealed[key]) {

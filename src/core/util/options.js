@@ -385,6 +385,7 @@ function assertObjectType (name: string, value: any, vm: ?Component) {
  * Merge two option objects into a new one.
  * Core utility used in both instantiation and inheritance.
  */
+// 合并两个选项 当出现相同选项时 子选项覆盖父选项的配置
 export function mergeOptions (
   parent: Object,
   child: Object,
@@ -397,7 +398,7 @@ export function mergeOptions (
   if (typeof child === 'function') {
     child = child.options
   }
-
+  // 标准化 props、inject、directive 选项，方便后续程序的处理
   normalizeProps(child, vm)
   normalizeInject(child, vm)
   normalizeDirectives(child)
@@ -406,6 +407,7 @@ export function mergeOptions (
   // but only if it is a raw options object that isn't
   // the result of another mergeOptions call.
   // Only merged options has the _base property.
+  // 对child上extends和mixins 分别执行mergeOptions 并合并到parent
   if (!child._base) {
     if (child.extends) {
       parent = mergeOptions(parent, child.extends, vm)

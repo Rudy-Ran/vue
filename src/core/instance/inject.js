@@ -4,6 +4,7 @@ import { hasOwn } from 'shared/util'
 import { warn, hasSymbol } from '../util/index'
 import { defineReactive, toggleObserving } from '../observer/index'
 
+// 解析组件配置项上的 provide 对象，将其挂载到 vm._provided 属性上
 export function initProvide (vm: Component) {
   const provide = vm.$options.provide
   if (provide) {
@@ -16,7 +17,7 @@ export function initProvide (vm: Component) {
  * 解析inject选项
  * 1. 得到{key : value}形式的配置对象
  * 2. 对解析结果做响应式处理
- * @param {*} vm 
+ * @param {*} vm
  */
 export function initInjections (vm: Component) {
   // 从配置项上解析 inject选项，最后得到result[key] = val 的结果
@@ -47,6 +48,7 @@ export function resolveInject (inject: any, vm: Component): ?Object {
   if (inject) {
     // inject is :any because flow is not smart enough to figure out cached
     const result = Object.create(null)
+    // 获取inject配置项的所有key
     const keys = hasSymbol
       ? Reflect.ownKeys(inject)
       : Object.keys(inject)
@@ -54,13 +56,16 @@ export function resolveInject (inject: any, vm: Component): ?Object {
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i]
       // #6574 in case the inject object is observed...
+      // 跳过__ob__对象
       if (key === '__ob__') continue
-      // 获取from属性
-      const provideKey = inject[key].from 
+      // 拿到provide中对应的key
+      const provideKey = inject[key].from
       let source = vm
-      // 从祖代组件的配置项中找到provide选项，从而找到对应key值
+     // 遍历所有的祖代组件，直到 根组件，找到 provide 中对应 key 的值，最后得到 result[key] = provide[provideKey]
       while (source) {
+        // 如果祖代存在provide 并且保存了当前寻找的provideKey
         if (source._provided && hasOwn(source._provided, provideKey)) {
+          // 结果赋值
           result[key] = source._provided[provideKey]
           break
         }

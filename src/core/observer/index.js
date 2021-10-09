@@ -187,13 +187,19 @@ export function defineReactive (
     get: function reactiveGetter () {
       const value = getter ? getter.call(obj) : val
       // 依赖收集
+      /**
+       * Dep.target为Dep类的一个静态属性 值为watcher 在实例化watcher时会被设置
+       * 实例化 Watcher 时会执行 new Watcher 时传递的回调函数（computed 除外，因为它懒执行）
+       * 而回调函数中如果有 vm.key 的读取行为，则会触发这里的 读取 拦截，进行依赖收集
+       * 回调函数执行完以后又会将 Dep.target 设置为 null，避免这里重复收集依赖
+       */
       if (Dep.target) {
         // 读取时进行的依赖收集 将dep放到watcher中 也将watcher添加到dep中
         dep.depend()
         if (childOb) {
           // 对嵌套对象也进行依赖收集
           childOb.dep.depend()
-          // 处理数组情况
+          // 处理数组情况 对象里面是数组
           if (Array.isArray(value)) {
             dependArray(value)
           }
@@ -313,6 +319,7 @@ export function del (target: Array<any> | Object, key: any) {
 /**
  * Collect dependencies on array elements when the array is touched, since
  * we cannot intercept array element access like property getters.
+ *
  * 处理数组选项为对象的情况，对其进行依赖收集 因为前面的处理都无法对数组项为对象的元素进行依赖收集
  */
 function  dependArray (value: Array<any>) {

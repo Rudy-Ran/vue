@@ -14,7 +14,7 @@ function flushCallbacks () {
   // 只会同时存在一个 flushCallbacks函数
   // 1. 将pending 再次置为false 表示下一个flushCallbacks函数可以进入浏览器的异步任务队列了
   // 2. 清空callback数组
-  // 3. 执行callbacks数组中的函数 （ flushSchedulerQueue 、用户自己调用 this.$nextTick 传递的回调函数） 
+  // 3. 执行callbacks数组中的函数 （ flushSchedulerQueue 、用户自己调用 this.$nextTick 传递的回调函数）
   pending = false
   const copies = callbacks.slice(0)
   callbacks.length = 0
@@ -34,6 +34,7 @@ function flushCallbacks () {
 // where microtasks have too high a priority and fire in between supposedly
 // sequential events (e.g. #4521, #6690, which have workarounds)
 // or even between bubbling of the same event (#6566).
+// timerFunc作用： 将flushCallbacks函数放入浏览器的异步任务队列中
 let timerFunc
 
 // The nextTick behavior leverages the microtask queue, which can be accessed
@@ -43,6 +44,8 @@ let timerFunc
 // completely stops working after triggering a few times... so, if native
 // Promise is available, we will use it:
 /* istanbul ignore next, $flow-disable-line */
+
+// 优先选择Promise.resolve().then()方式
 if (typeof Promise !== 'undefined' && isNative(Promise)) {
   const p = Promise.resolve()
   timerFunc = () => {
@@ -78,16 +81,28 @@ if (typeof Promise !== 'undefined' && isNative(Promise)) {
   // Fallback to setImmediate.
   // Technically it leverages the (macro) task queue,
   // but it is still a better choice than setTimeout.
+   // 再就是 setImmediate，它其实已经是一个宏任务了，但仍然比 setTimeout 要好
   timerFunc = () => {
     setImmediate(flushCallbacks)
   }
 } else {
   // Fallback to setTimeout.
+  // 最后没办法，则使用 setTimeout
   timerFunc = () => {
     setTimeout(flushCallbacks, 0)
   }
 }
 // Vue.nextTick(function(){})
+/**
+ * 两件事：
+ * 1.用try catch 包装 flushSchedulerQueue函数将其放入callbacks数组
+ * 2.如果pending = false 表示浏览器的任务队列中没有 flushCallbacks 函数 pedding = true 则表示浏览器的任务队列中已经被放入了 flushCallbacks 函数
+ *   待执行 flushCallbacks 函数时，pending 会被再次置为 false，表示下一个 flushCallbacks 函数可以进入
+ *   pending 的作用：保证在同一时刻，浏览器的任务队列中只有一个 flushCallbacks 函数
+ * @param {*} cb   flushSchedulerQueue
+ * @param {*} ctx
+ * @returns
+ */
 export function nextTick (cb?: Function, ctx?: Object) {
   let _resolve
   // 将nextTick的回调函数用try catch包装一层 方便异常捕获
@@ -103,6 +118,7 @@ export function nextTick (cb?: Function, ctx?: Object) {
       _resolve(ctx)
     }
   })
+  // 当前浏览器任务队列中没有flushCallbacks 函数
   if (!pending) {
     pending = true
     timerFunc()

@@ -102,7 +102,7 @@ export default class Watcher {
    * 更新组件时先执行render 生成vnode 期间触发读取操作，进行依赖收集
    */
   get () {
-    // 对新值进行依赖收集
+    // 对新值进行依赖收集 Dep.target，Dep.target = this
     pushTarget(this)
     let value
     const vm = this.vm
@@ -124,6 +124,7 @@ export default class Watcher {
       if (this.deep) {
         traverse(value)
       }
+      // 关闭 Dep.target，Dep.target = null
       popTarget()
       this.cleanupDeps()
     }
@@ -179,8 +180,7 @@ export default class Watcher {
       this.dirty = true
     } else if (this.sync) {
     // 同步执行，在使用 vm.$watch 或者 watch 选项时可以传一个 sync 选项，
-    // 当为 true 时在数据更新时该 watcher 就不走异步更新队列，直接执行 this.run 
-    // 方法进行更新
+    // 当为 true 时在数据更新时该 watcher 就不走异步更新队列，直接执行 this.run 方法进行更新
     // 这个属性在官方文档中没有出现
       this.run()
     } else {
@@ -192,6 +192,10 @@ export default class Watcher {
   /**
    * Scheduler job interface.
    * Will be called by the scheduler.
+   */
+  /**
+   * 由刷新队列函数 flushSchedulerQueue 调用 同步 watch，则由 this.update 直接调用
+   *
    */
   run () {
     if (this.active) {
@@ -205,6 +209,7 @@ export default class Watcher {
         this.deep
       ) {
         // set new value
+        // 更新旧值为新值
         const oldValue = this.value
         this.value = value
         if (this.user) {

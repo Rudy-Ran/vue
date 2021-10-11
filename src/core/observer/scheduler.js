@@ -83,7 +83,13 @@ function flushSchedulerQueue () {
   // 3. If a component is destroyed during a parent component's watcher run,
   //    its watchers can be skipped.
   queue.sort((a, b) => a.id - b.id)
-
+  /**
+   * 刷新队列之前先给队列排序（升序），可以保证：
+   *   1、组件的更新顺序为从父级到子级，因为父组件总是在子组件之前被创建
+   *   2、一个组件的用户 watcher 在其渲染 watcher 之前被执行，因为用户 watcher 先于 渲染 watcher 创建
+   *   3、如果一个组件在其父组件的 watcher 执行期间被销毁，则它的 watcher 可以被跳过
+   * 排序以后在刷新队列期间新进来的 watcher 也会按顺序放入队列的合适位置
+   */
   // do not cache length because more watchers might be pushed
   // as we run existing watchers
   // 循环遍历watcher队列 依次执行watcher 的run方法
@@ -165,6 +171,8 @@ function callActivatedHooks (queue) {
  * Jobs with duplicate IDs will be skipped unless it's
  * pushed when the queue is being flushed.
  */
+
+// 将watcher放入watcher队列
 export function queueWatcher (watcher: Watcher) {
   const id = watcher.id
   if (has[id] == null) {
@@ -180,6 +188,7 @@ export function queueWatcher (watcher: Watcher) {
       // watcher队列已经在被刷新了 这个时候watcher入队需要特殊处理一下
       // 保证 watcher入队后 刷新中的watcher队列仍然有序
       let i = queue.length - 1
+      // 找到watcher.id大于 queue[i].id的位置 插入
       while (i > index && queue[i].id > watcher.id) {
         i--
       }

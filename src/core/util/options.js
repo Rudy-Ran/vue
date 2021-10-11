@@ -407,6 +407,7 @@ export function mergeOptions (
   // but only if it is a raw options object that isn't
   // the result of another mergeOptions call.
   // Only merged options has the _base property.
+
   // 对child上extends和mixins 分别执行mergeOptions 并合并到parent
   if (!child._base) {
     if (child.extends) {
@@ -424,6 +425,7 @@ export function mergeOptions (
   for (key in parent) {
     mergeField(key)
   }
+  // 遍历 子选项，如果父选项不存在该配置，则合并，否则跳过，因为父子拥有同一个属性的情况在上面处理父选项时已经处理过了，用的子选项的值
   for (key in child) {
     if (!hasOwn(parent, key)) {
       mergeField(key)

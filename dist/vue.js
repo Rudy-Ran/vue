@@ -714,6 +714,13 @@
    * A dep is an observable that can have multiple
    * directives subscribing to it.
    */
+
+  /**
+   * 一个 dep 对应一个 obj.key
+   * 在读取响应式数据时，负责收集依赖，每个 dep（或者说 obj.key）依赖的 watcher 有哪些
+   * 在响应式数据更新时，负责通知 dep 中那些 watcher 去执行 update 方法
+   */
+
   var Dep = function Dep () {
     this.id = uid++;
     this.subs = [];
@@ -751,14 +758,18 @@
   // The current target watcher being evaluated.
   // This is globally unique because only one watcher
   // can be evaluated at a time.
+
+  // Dep.target = 当前正在执行的 watcher
   Dep.target = null;
   var targetStack = [];
 
+  // 在需要进行依赖收集的时候调用，设置 Dep.target = watcher
   function pushTarget (target) {
     targetStack.push(target);
     Dep.target = target;
   }
 
+  // 依赖收集结束调用，设置 Dep.target = null
   function popTarget () {
     targetStack.pop();
     Dep.target = targetStack[targetStack.length - 1];
@@ -1075,13 +1086,19 @@
       get: function reactiveGetter () {
         var value = getter ? getter.call(obj) : val;
         // 依赖收集
+        /**
+         * Dep.target为Dep类的一个静态属性 值为watcher 在实例化watcher时会被设置
+         * 实例化 Watcher 时会执行 new Watcher 时传递的回调函数（computed 除外，因为它懒执行）
+         * 而回调函数中如果有 vm.key 的读取行为，则会触发这里的 读取 拦截，进行依赖收集
+         * 回调函数执行完以后又会将 Dep.target 设置为 null，避免这里重复收集依赖
+         */
         if (Dep.target) {
           // 读取时进行的依赖收集 将dep放到watcher中 也将watcher添加到dep中
           dep.depend();
           if (childOb) {
             // 对嵌套对象也进行依赖收集
             childOb.dep.depend();
-            // 处理数组情况
+            // 处理数组情况 对象里面是数组
             if (Array.isArray(value)) {
               dependArray(value);
             }
@@ -1123,6 +1140,7 @@
    * Set a property on an object. Adds the new property and
    * triggers change notification if the property doesn't
    * already exist.
+   *
    * 通过Vue.set 或者 this.$set方法给target指定的key设置值 val
    * 如果 target 是对象，并且 key 原本不存在，则为新 key 设置响应式，然后执行依赖通知
    */
@@ -1139,12 +1157,14 @@
       target.splice(key, 1, val);
       return val
     }
-    // 处理对象上的情况
+    // 处理对象上的情况 存在的话就更新值
     if (key in target && !(key in Object.prototype)) {
       target[key] = val;
       return val
     }
     var ob = (target).__ob__;
+    // 不能向 Vue 实例或者 $data 添加动态添加响应式属性，vmCount 的用处之一，
+    // this.$data 的 ob.vmCount = 1，表示根组件，其它子组件的 vm.vmCount 都是 0
     if (target._isVue || (ob && ob.vmCount)) {
        warn(
         'Avoid adding reactive properties to a Vue instance or its root $data ' +
@@ -1152,6 +1172,7 @@
       );
       return val
     }
+    // target不是响应式对象 即没有__ob__属性 新属性会被设置，但是不会做响应式处理
     if (!ob) {
       target[key] = val;
       return val
@@ -1185,7 +1206,7 @@
       );
       return
     }
-    // 处理对象上的情况
+    // 处理对象上的情况 如果属性不存在直接结束
     if (!hasOwn(target, key)) {
       return
     }
@@ -1201,6 +1222,7 @@
   /**
    * Collect dependencies on array elements when the array is touched, since
    * we cannot intercept array element access like property getters.
+   *
    * 处理数组选项为对象的情况，对其进行依赖收集 因为前面的处理都无法对数组项为对象的元素进行依赖收集
    */
   function  dependArray (value) {
@@ -1579,6 +1601,7 @@
    * Merge two option objects into a new one.
    * Core utility used in both instantiation and inheritance.
    */
+  // 合并两个选项 当出现相同选项时 子选项覆盖父选项的配置
   function mergeOptions (
     parent,
     child,
@@ -1591,7 +1614,7 @@
     if (typeof child === 'function') {
       child = child.options;
     }
-
+    // 标准化 props、inject、directive 选项，方便后续程序的处理
     normalizeProps(child, vm);
     normalizeInject(child, vm);
     normalizeDirectives(child);
@@ -1600,6 +1623,8 @@
     // but only if it is a raw options object that isn't
     // the result of another mergeOptions call.
     // Only merged options has the _base property.
+
+    // 对child上extends和mixins 分别执行mergeOptions 并合并到parent
     if (!child._base) {
       if (child.extends) {
         parent = mergeOptions(parent, child.extends, vm);
@@ -1616,6 +1641,7 @@
     for (key in parent) {
       mergeField(key);
     }
+    // 遍历 子选项，如果父选项不存在该配置，则合并，否则跳过，因为父子拥有同一个属性的情况在上面处理父选项时已经处理过了，用的子选项的值
     for (key in child) {
       if (!hasOwn(parent, key)) {
         mergeField(key);
@@ -1981,7 +2007,7 @@
     // 只会同时存在一个 flushCallbacks函数
     // 1. 将pending 再次置为false 表示下一个flushCallbacks函数可以进入浏览器的异步任务队列了
     // 2. 清空callback数组
-    // 3. 执行callbacks数组中的函数 （ flushSchedulerQueue 、用户自己调用 this.$nextTick 传递的回调函数） 
+    // 3. 执行callbacks数组中的函数 （ flushSchedulerQueue 、用户自己调用 this.$nextTick 传递的回调函数）
     pending = false;
     var copies = callbacks.slice(0);
     callbacks.length = 0;
@@ -2001,6 +2027,7 @@
   // where microtasks have too high a priority and fire in between supposedly
   // sequential events (e.g. #4521, #6690, which have workarounds)
   // or even between bubbling of the same event (#6566).
+  // timerFunc作用： 将flushCallbacks函数放入浏览器的异步任务队列中
   var timerFunc;
 
   // The nextTick behavior leverages the microtask queue, which can be accessed
@@ -2010,6 +2037,8 @@
   // completely stops working after triggering a few times... so, if native
   // Promise is available, we will use it:
   /* istanbul ignore next, $flow-disable-line */
+
+  // 优先选择Promise.resolve().then()方式
   if (typeof Promise !== 'undefined' && isNative(Promise)) {
     var p = Promise.resolve();
     timerFunc = function () {
@@ -2045,16 +2074,28 @@
     // Fallback to setImmediate.
     // Technically it leverages the (macro) task queue,
     // but it is still a better choice than setTimeout.
+     // 再就是 setImmediate，它其实已经是一个宏任务了，但仍然比 setTimeout 要好
     timerFunc = function () {
       setImmediate(flushCallbacks);
     };
   } else {
     // Fallback to setTimeout.
+    // 最后没办法，则使用 setTimeout
     timerFunc = function () {
       setTimeout(flushCallbacks, 0);
     };
   }
   // Vue.nextTick(function(){})
+  /**
+   * 两件事：
+   * 1.用try catch 包装 flushSchedulerQueue函数将其放入callbacks数组
+   * 2.如果pending = false 表示浏览器的任务队列中没有 flushCallbacks 函数 pedding = true 则表示浏览器的任务队列中已经被放入了 flushCallbacks 函数
+   *   待执行 flushCallbacks 函数时，pending 会被再次置为 false，表示下一个 flushCallbacks 函数可以进入
+   *   pending 的作用：保证在同一时刻，浏览器的任务队列中只有一个 flushCallbacks 函数
+   * @param {*} cb   flushSchedulerQueue
+   * @param {*} ctx
+   * @returns
+   */
   function nextTick (cb, ctx) {
     var _resolve;
     // 将nextTick的回调函数用try catch包装一层 方便异常捕获
@@ -2070,6 +2111,7 @@
         _resolve(ctx);
       }
     });
+    // 当前浏览器任务队列中没有flushCallbacks 函数
     if (!pending) {
       pending = true;
       timerFunc();
@@ -2497,6 +2539,7 @@
 
   /*  */
 
+  // 解析组件配置项上的 provide 对象，将其挂载到 vm._provided 属性上
   function initProvide (vm) {
     var provide = vm.$options.provide;
     if (provide) {
@@ -2509,7 +2552,7 @@
    * 解析inject选项
    * 1. 得到{key : value}形式的配置对象
    * 2. 对解析结果做响应式处理
-   * @param {*} vm 
+   * @param {*} vm
    */
   function initInjections (vm) {
     // 从配置项上解析 inject选项，最后得到result[key] = val 的结果
@@ -2537,6 +2580,7 @@
     if (inject) {
       // inject is :any because flow is not smart enough to figure out cached
       var result = Object.create(null);
+      // 获取inject配置项的所有key
       var keys = hasSymbol
         ? Reflect.ownKeys(inject)
         : Object.keys(inject);
@@ -2544,13 +2588,16 @@
       for (var i = 0; i < keys.length; i++) {
         var key = keys[i];
         // #6574 in case the inject object is observed...
+        // 跳过__ob__对象
         if (key === '__ob__') { continue }
-        // 获取from属性
-        var provideKey = inject[key].from; 
+        // 拿到provide中对应的key
+        var provideKey = inject[key].from;
         var source = vm;
-        // 从祖代组件的配置项中找到provide选项，从而找到对应key值
+       // 遍历所有的祖代组件，直到 根组件，找到 provide 中对应 key 的值，最后得到 result[key] = provide[provideKey]
         while (source) {
+          // 如果祖代存在provide 并且保存了当前寻找的provideKey
           if (source._provided && hasOwn(source._provided, provideKey)) {
+            // 结果赋值
             result[key] = source._provided[provideKey];
             break
           }
@@ -3614,7 +3661,10 @@
     Vue.prototype.$nextTick = function (fn) {
       return nextTick(fn, this)
     };
-
+    /**
+     * 通过执行 render 函数生成 VNode
+     * 不过里面加了大量的异常处理代码
+     */
     Vue.prototype._render = function () {
       var vm = this;
       var ref = vm.$options;
@@ -3639,6 +3689,7 @@
         // separately from one another. Nested component's render fns are called
         // when parent component is patched.
         currentRenderingInstance = vm;
+        // 执行render函数 生成vnode
         vnode = render.call(vm._renderProxy, vm.$createElement);
       } catch (e) {
         handleError(e, vm, "render");
@@ -3898,7 +3949,7 @@
         (vm._events[event] || (vm._events[event] = [])).push(fn);
         // optimize hook:event cost by using a boolean flag marked at registration
         // instead of a hash lookup
-        // TODO:这里不太理解
+        // hookEvent ，提供从外部为组件实例注入声明周期方法的机会
         if (hookRE.test(event)) {
           vm._hasHookEvent = true;
         }
@@ -3920,6 +3971,7 @@
     Vue.prototype.$off = function (event, fn) {
       var vm = this;
       // all
+      // vm.$off() 移除实例上的所有监听器 => vm._events = {}
       if (!arguments.length) {
         vm._events = Object.create(null);
         return vm
@@ -3934,13 +3986,16 @@
       // specific event
       var cbs = vm._events[event];
       if (!cbs) {
+        // 表示没有注册过该事件
         return vm
       }
       if (!fn) {
+        // 没有提供 fn 回调函数，则移除该事件的所有回调函数，vm._event[event] = null
         vm._events[event] = null;
         return vm
       }
       // specific handler
+      // 移除指定事件的指定回调函数，就是从事件的回调数组中找到该回调函数，然后删除
       var cb;
       var i = cbs.length;
       while (i--) {
@@ -3958,7 +4013,7 @@
       {
         // 事件名转化成小写
         var lowerCaseEvent = event.toLowerCase();
-        // 意思是说，HTML 属性不区分大小写，所以你不能使用 v-on 监听小驼峰形式的事件名（eventName），而应该使用连字符形式的事件名（event-name)
+        // HTML 属性不区分大小写，所以你不能使用 v-on 监听小驼峰形式的事件名（eventName），而应该使用连字符形式的事件名（event-name)
         if (lowerCaseEvent !== event && vm._events[lowerCaseEvent]) {
           tip(
             "Event \"" + lowerCaseEvent + "\" is emitted in component " +
@@ -4022,6 +4077,7 @@
   }
 
   function lifecycleMixin (Vue) {
+    // 负责更新页面，页面首次渲染和后续更新的入口位置，也是 patch 的入口位置
     Vue.prototype._update = function (vnode, hydrating) {
       var vm = this;
       var prevEl = vm.$el;
@@ -4032,9 +4088,11 @@
       // based on the rendering backend used.
       if (!prevVnode) {
         // initial render
+        // 首次渲染走这里
         vm.$el = vm.__patch__(vm.$el, vnode, hydrating, false /* removeOnly */);
       } else {
         // updates
+        // 响应式数据更新时，即更新页面时走这里
         vm.$el = vm.__patch__(prevVnode, vnode);
       }
       restoreActiveInstance();
@@ -4053,6 +4111,10 @@
       // updated in a parent's updated hook.
     };
 
+    /**
+   * 直接调用 watcher.update 方法，迫使组件重新渲染。
+   * 它仅仅影响实例本身和插入插槽内容的子组件，而不是所有子组件
+   */
     Vue.prototype.$forceUpdate = function () {
       var vm = this;
       if (vm._watcher) {
@@ -4069,10 +4131,12 @@
       vm._isBeingDestroyed = true;
       // remove self from parent
       var parent = vm.$parent;
+      // 把自己和父节点断开
       if (parent && !parent._isBeingDestroyed && !vm.$options.abstract) {
         remove(parent.$children, vm);
       }
       // teardown watchers
+      // 移除依赖监听
       if (vm._watcher) {
         vm._watcher.teardown();
       }
@@ -4088,6 +4152,7 @@
       // call the last hook...
       vm._isDestroyed = true;
       // invoke destroy hooks on current rendered tree
+        // 调用 __patch__，销毁节点
       vm.__patch__(vm._vnode, null);
       // fire destroyed hook
       callHook(vm, 'destroyed');
@@ -4391,7 +4456,13 @@
     // 3. If a component is destroyed during a parent component's watcher run,
     //    its watchers can be skipped.
     queue.sort(function (a, b) { return a.id - b.id; });
-
+    /**
+     * 刷新队列之前先给队列排序（升序），可以保证：
+     *   1、组件的更新顺序为从父级到子级，因为父组件总是在子组件之前被创建
+     *   2、一个组件的用户 watcher 在其渲染 watcher 之前被执行，因为用户 watcher 先于 渲染 watcher 创建
+     *   3、如果一个组件在其父组件的 watcher 执行期间被销毁，则它的 watcher 可以被跳过
+     * 排序以后在刷新队列期间新进来的 watcher 也会按顺序放入队列的合适位置
+     */
     // do not cache length because more watchers might be pushed
     // as we run existing watchers
     // 循环遍历watcher队列 依次执行watcher 的run方法
@@ -4473,6 +4544,8 @@
    * Jobs with duplicate IDs will be skipped unless it's
    * pushed when the queue is being flushed.
    */
+
+  // 将watcher放入watcher队列
   function queueWatcher (watcher) {
     var id = watcher.id;
     if (has[id] == null) {
@@ -4488,6 +4561,7 @@
         // watcher队列已经在被刷新了 这个时候watcher入队需要特殊处理一下
         // 保证 watcher入队后 刷新中的watcher队列仍然有序
         var i = queue.length - 1;
+        // 找到watcher.id大于 queue[i].id的位置 插入
         while (i > index && queue[i].id > watcher.id) {
           i--;
         }
@@ -4578,7 +4652,7 @@
    * 更新组件时先执行render 生成vnode 期间触发读取操作，进行依赖收集
    */
   Watcher.prototype.get = function get () {
-    // 对新值进行依赖收集
+    // 对新值进行依赖收集 Dep.target，Dep.target = this
     pushTarget(this);
     var value;
     var vm = this.vm;
@@ -4600,6 +4674,7 @@
       if (this.deep) {
         traverse(value);
       }
+      // 关闭 Dep.target，Dep.target = null
       popTarget();
       this.cleanupDeps();
     }
@@ -4655,8 +4730,7 @@
       this.dirty = true;
     } else if (this.sync) {
     // 同步执行，在使用 vm.$watch 或者 watch 选项时可以传一个 sync 选项，
-    // 当为 true 时在数据更新时该 watcher 就不走异步更新队列，直接执行 this.run 
-    // 方法进行更新
+    // 当为 true 时在数据更新时该 watcher 就不走异步更新队列，直接执行 this.run 方法进行更新
     // 这个属性在官方文档中没有出现
       this.run();
     } else {
@@ -4668,6 +4742,10 @@
   /**
    * Scheduler job interface.
    * Will be called by the scheduler.
+   */
+  /**
+   * 由刷新队列函数 flushSchedulerQueue 调用 同步 watch，则由 this.update 直接调用
+   *
    */
   Watcher.prototype.run = function run () {
     if (this.active) {
@@ -4681,6 +4759,7 @@
         this.deep
       ) {
         // set new value
+        // 更新旧值为新值
         var oldValue = this.value;
         this.value = value;
         if (this.user) {
@@ -4794,6 +4873,7 @@
     var loop = function ( key ) {
       // 缓存key
       keys.push(key);
+      // 获取props[key]的默认值
       var value = validateProp(key, propsOptions, propsData, vm);
       /* istanbul ignore else */
       {
@@ -4911,8 +4991,8 @@
 
       if (!isSSR) {
         // create internal watcher for the computed property.
-        // 为computed属性创建 watcher实例 computed其实就是通过watcher实现的
 
+        // 为每个computed属性创建 watcher实例 computed其实就是通过watcher实现的
         watchers[key] = new Watcher(
           vm,
           getter || noop,
@@ -4974,6 +5054,7 @@
   }
 
   function createComputedGetter (key) {
+    // 返回一个函数 这个函数在访问vm.computedProperty时会执行 然后返回执行结果
     return function computedGetter () {
       // 得到key对应的watcher
       var watcher = this._computedWatchers && this._computedWatchers[key];
@@ -4999,8 +5080,12 @@
     }
   }
   /**
-   * 做了三件事
-   *
+   *   1、校验 methoss[key]，必须是一个函数
+   *   2、判重
+  *         methods 中的 key 不能和 props 中的 key 相同
+  *         methos 中的 key 与 Vue 实例上已有的方法重叠，一般是一些内置方法，比如以 $ 和 _ 开头的方法
+   *   3、将 methods[key] 放到 vm 实例上，得到 vm[key] = methods[key]
+
    * @param {*} vm
    * @param {*} methods
    */
@@ -5038,6 +5123,7 @@
     for (var key in watch) {
       var handler = watch[key];
       if (Array.isArray(handler)) {
+        // handler 为数组，遍历数组，获取其中的每一项，然后调用 createWatcher
         for (var i = 0; i < handler.length; i++) {
           createWatcher(vm, key, handler[i]);
         }
@@ -5085,6 +5171,7 @@
         warn("$props is readonly.", this);
       };
     }
+    // 将data属性和props属性挂载到Vue.prototype上
     Object.defineProperty(Vue.prototype, '$data', dataDef);
     Object.defineProperty(Vue.prototype, '$props', propsDef);
 
@@ -5092,7 +5179,8 @@
     Vue.prototype.$delete = del;
   /**
    * 创建watcher 返回unwatch 共完成如下5件事：
-   * 1.
+   * 1. 兼容性处理，保证最后 new Watcher 时的 cb 为函数
+   * 2. 标示用户 watcher
    * @param {*} expOrFn key
    * @param {*} cb      key对应的回调
    * @param {*} options 配置选项
@@ -5109,7 +5197,7 @@
         return createWatcher(vm, expOrFn, cb, options)
       }
       options = options || {};
-      // 标记这是一个用户watcher
+      // 标记这是一个用户watcher 还有渲染 watcher，即 updateComponent 方法中实例化的 watcher
       options.user = true;
       // 实例化watcher
       var watcher = new Watcher(vm, expOrFn, cb, options);
@@ -5225,7 +5313,7 @@
     }
   }
 
-  // 从构造函数上解析配置项
+  // 从构造函数上解析配置项options
   function resolveConstructorOptions (Ctor) {
     // 从实例构造函数上获取选项
     var options = Ctor.options;
@@ -5235,7 +5323,7 @@
       // 缓存基类的配置选项
       var cachedSuperOptions = Ctor.superOptions;
       if (superOptions !== cachedSuperOptions) {
-        // 如果不一致，说明基类的配置项发生了改变
+        // 如果不一致，说明基类的配置项发生了改变 需要重新设置
         // super option changed,
         // need to resolve new options.
         Ctor.superOptions = superOptions;
@@ -5257,9 +5345,12 @@
     return options
   }
 
+  // 解析构造函数中后续被修改后者增加的选项
   function resolveModifiedOptions (Ctor) {
     var modified;
+    // 构造函数的选项
     var latest = Ctor.options;
+     // 密封的构造函数选项，备份
     var sealed = Ctor.sealedOptions;
     for (var key in latest) {
       if (latest[key] !== sealed[key]) {
@@ -5311,10 +5402,11 @@
 
   function initUse (Vue) {
     // Vue.use(plugin)
-    // 总结：本质就是在执行插件暴露出来的install 方法 
+    // 总结：本质就是在执行插件暴露出来的install 方法
     Vue.use = function (plugin) {
-      // installedPlugins 保证了不会重复注册同一个组件
+      // installedPlugins 已安装插件列表 保证了不会重复注册同一个组件
       var installedPlugins = (this._installedPlugins || (this._installedPlugins = []));
+      // 判断plugin 是否已经安装 保证不重复安装
       if (installedPlugins.indexOf(plugin) > -1) {
         return this
       }
@@ -5322,9 +5414,11 @@
       // additional parameters
       var args = toArray(arguments, 1);
       args.unshift(this);
+          // plugin 是一个对象，则执行其 install 方法安装插件
       if (typeof plugin.install === 'function') {
         plugin.install.apply(plugin, args);
       } else if (typeof plugin === 'function') {
+        // 执行直接 plugin 方法安装插件
         plugin.apply(null, args);
       }
       // 将plugin 放入已安装的插件数组中
@@ -5334,10 +5428,11 @@
   }
 
   /*  */
-
+  // 全局混入
   function initMixin$1 (Vue) {
     // 利用mergeOptions合并两个选项
     Vue.mixin = function (mixin) {
+      //  在 Vue 的默认配置项上合并 mixin 对象
       this.options = mergeOptions(this.options, mixin);
       return this
     };
@@ -5372,28 +5467,30 @@
       if ( name) {
         validateComponentName(name);
       }
-      // 定义一个vue子类
+      // 定义一个vue子类 Sub 构造函数，和 Vue 构造函数一样
       var Sub = function VueComponent (options) {
         this._init(options);
       };
-      // 设置子类的原型对象
+      // 设置子类的原型对象  通过原型继承的方式继承 Vue
       Sub.prototype = Object.create(Super.prototype);
       // 设置构造函数
       Sub.prototype.constructor = Sub;
       Sub.cid = cid++;
-      // 合并基类的选项和传递过来的选项
+      // 合并父类的选项和传递过来的选项
       // 可以通过Vue.extend方法定义一个子类,预设一些配置项 这些配置项就相当于直接使用Vue构造函数时的默认配置一样
       Sub.options = mergeOptions(
         Super.options,
         extendOptions
       );
+      // 记录自己的父类
       Sub['super'] = Super;
 
       // For props and computed properties, we define the proxy getters on
       // the Vue instances at extension time, on the extended prototype. This
       // avoids Object.defineProperty calls for each instance created.
+
       // 将props和computed代理到子类上，在子类支持通过this.xxx方式访问
-      if (Sub.options.props) { 
+      if (Sub.options.props) {
         initProps$1(Sub);
       }
       if (Sub.options.computed) {
@@ -5401,18 +5498,20 @@
       }
 
       // allow further extension/mixin/plugin usage
-      // 让子类支持继续向下扩展
+      // 定义 extend、mixin、use 这三个静态方法，允许在 Sub 基础上再进一步构造子类
       Sub.extend = Super.extend;
       Sub.mixin = Super.mixin;
       Sub.use = Super.use;
 
       // create asset registers, so extended classes
       // can have their private assets too.
+
+      // 定义 component、filter、directive 三个静态方法
       ASSET_TYPES.forEach(function (type) {
         Sub[type] = Super[type];
       });
       // enable recursive self-lookup
-      // 组件递归自调用的实现原理
+      // 组件递归自调用的实现原理 如果组件设置了 name 属性，则将自己注册到自己的 components 选项中
       if (name) {
         Sub.options.components[name] = Sub;
       }
@@ -5420,11 +5519,15 @@
       // keep a reference to the super options at extension time.
       // later at instantiation we can check if Super's options have
       // been updated.
+
+      // 在扩展时保留对基类选项的引用。
+      // 稍后在实例化时，我们可以检查 Super 的选项是否具有更新
       Sub.superOptions = Super.options;
       Sub.extendOptions = extendOptions;
       Sub.sealedOptions = extend({}, Sub.options);
 
       // cache constructor
+       // 缓存
       cachedCtors[SuperId] = Sub;
       return Sub
     };
@@ -5466,7 +5569,7 @@
           if (type === 'component' && isPlainObject(definition)) {
             // 设置组件名称
             definition.name = definition.name || id;
-            // Vue.extend方法 基于definition去扩展一个新的组件子类 
+            // Vue.extend方法 基于definition去扩展一个新的组件子类
             definition = this.options._base.extend(definition);
           }
           if (type === 'directive' && typeof definition === 'function') {

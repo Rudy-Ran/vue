@@ -15,7 +15,7 @@ export function initExtend (Vue: GlobalAPI) {
 
   /**
    * Class inheritance
-   * 扩展Vue子类，预设一些配置项
+   * 扩展Vue子类，该子类同样支持进一步的扩展，预设一些配置项
    */
   Vue.extend = function (extendOptions: Object): Function {
     extendOptions = extendOptions || {}

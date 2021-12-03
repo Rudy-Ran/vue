@@ -1,40 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <title>Vue 源码解读</title>
 </head>
-
 <body>
   <div id="app">
-    <input v-model="value" v-for="item in arr" :key="item"/>
-    <child :text="msg"></child>
+    <comp :msg="msg" @log-msg="logMsg"></comp>
   </div>
   <script src="../dist/vue.js"></script>
   <script>
     debugger
-    Vue.component('child',{
-      template:'<div>{{title}},{{text}}</div>',
-      props:{
-        text:String
-      },
-      data(){
-        return {
-          title:'123'
-        }
-      }
-    })
-    new Vue({
-      el: '#app',
-      data: {
-        msg: 'hello vue',
-        value:2,
-        arr:[1,2,3]
-      }
-    })
+    // 子组件
+    Vue.component('comp', {
+            props: ['msg'],
+            template: `
+                <div class="blog-post">
+                <h3>{{ msg }}</h3>
+                <button @click="$emit('log-msg', msg)">
+                    Console Message
+                </button>
+            `
+        });
+        // 创建实例
+        const app = new Vue({
+            el: '#app',
+            data: {
+                msg: 'props-message'
+            },
+            methods: {
+                logMsg(data) {
+                    console.log(data)
+                }
+            }
+      });
 
+
+    // vue extend情况
+
+    // var Profile = Vue.extend({
+    //  template: '<p>{{firstName}} {{lastName}} aka {{alias}}</p>'
+    // })
+    // Vue.mixin({ data: function () {
+    // return {
+    //   firstName: 'Walter',
+    //   lastName: 'White',
+    //   alias: 'Heisenberg'
+    // }
+    // }})
+    // new Profile().$mount('#app')
   </script>
 </body>
-
 </html>

@@ -108,7 +108,7 @@ export default class Watcher {
     const vm = this.vm
     try {
       // 执行实例化watcher时传递进来的第二个参数
-      // 有可能是一函数 比如 实例化渲染watcher时传递的 updateComponent
+      // 有可能是一函数 比如 实例化渲染watcher时传递的 updateComponent 进入patch阶段
       // 用户watcher 可能是 key 或者一个读取this.key的函数
       // 触发读取操作 被setter拦截进行依赖收集
       value = this.getter.call(vm, vm)
@@ -137,9 +137,13 @@ export default class Watcher {
    */
     addDep (dep: Dep) {
     const id = dep.id
+    // 判重，如果dep已经存在则不重复添加
     if (!this.newDepIds.has(id)) {
+      // 缓存dep.id 用于判重
       this.newDepIds.add(id)
+      // 添加dep
       this.newDeps.push(dep)
+       // 避免在 dep 中重复添加 watcher
       if (!this.depIds.has(id)) {
         // 将watcher自己放到dep中 双向收集
         dep.addSub(this)
@@ -181,10 +185,9 @@ export default class Watcher {
     } else if (this.sync) {
     // 同步执行，在使用 vm.$watch 或者 watch 选项时可以传一个 sync 选项，
     // 当为 true 时在数据更新时该 watcher 就不走异步更新队列，直接执行 this.run 方法进行更新
-    // 这个属性在官方文档中没有出现
       this.run()
     } else {
-      // 将当前watcher放到watcher队列 通常走这里
+      // 将当前watcher放到watcher队列 通常走这里 异步更新watcher
       queueWatcher(this)
     }
   }
@@ -194,7 +197,7 @@ export default class Watcher {
    * Will be called by the scheduler.
    */
   /**
-   * 由刷新队列函数 flushSchedulerQueue 调用 同步 watch，则由 this.update 直接调用
+   * 由刷新队列函数 flushSchedulerQueue 调用      同步watch，则由 this.update 直接调用
    *
    */
   run () {
@@ -226,6 +229,12 @@ export default class Watcher {
   /**
    * Evaluate the value of the watcher.
    * This only gets called for lazy watchers.
+   */
+   /**
+   * 懒执行的 watcher 会调用该方法 比如：computed，
+   * 然后执行 this.get，即 watcher 的回调函数，得到返回值
+   * this.dirty 被置为 false，作用是页面在本次渲染中只会一次 computed.key 的回调函数，
+   * 而页面更新后会 this.dirty 会被重新置为 true，这一步是在 this.update 方法中完成的
    */
   evaluate () {
     this.value = this.get()

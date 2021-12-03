@@ -109,6 +109,7 @@ export function parse (
   delimiters = options.delimiters
 
   const stack = []
+  // 空格选项
   const preserveWhitespace = options.preserveWhitespace !== false
   const whitespaceOption = options.whitespace
    // 根节点，以 root 为根，处理后的节点都会按照层级挂载到 root 下，最后 return 的就是 root，一个 ast 语法树
@@ -221,7 +222,9 @@ export function parse (
   parseHTML(template, {
     warn,
     expectHTML: options.expectHTML,
+    // 是否是自闭合标签
     isUnaryTag: options.isUnaryTag,
+     // 是否可以只有开始标签
     canBeLeftOpenTag: options.canBeLeftOpenTag,
     shouldDecodeNewlines: options.shouldDecodeNewlines,
     shouldDecodeNewlinesForHref: options.shouldDecodeNewlinesForHref,

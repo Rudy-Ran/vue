@@ -409,6 +409,7 @@ export function mergeOptions (
   // Only merged options has the _base property.
 
   // 对child上extends和mixins 分别执行mergeOptions 并合并到parent
+  // 当传入的options里有mixin或者extends属性时，再次调用mergeOptions方法合并mixins和extends里的内容到实例的构造函数options上
   if (!child._base) {
     if (child.extends) {
       parent = mergeOptions(parent, child.extends, vm)
@@ -422,16 +423,19 @@ export function mergeOptions (
 
   const options = {}
   let key
+  // 遍历父选项 根据合并策略合并
   for (key in parent) {
     mergeField(key)
   }
-  // 遍历 子选项，如果父选项不存在该配置，则合并，否则跳过，因为父子拥有同一个属性的情况在上面处理父选项时已经处理过了，用的子选项的值
+  // 遍历子选项，如果父选项不存在该配置，则合并，否则跳过，因为父子拥有同一个属性的情况在上面处理父选项时已经处理过了，默认用的子选项的值
   for (key in child) {
     if (!hasOwn(parent, key)) {
       mergeField(key)
     }
   }
   function mergeField (key) {
+    // strats = Object.create(null)
+    // strat 是指合并策略 defaultStrat 默认合并策略是child优先 strat对不同的属性存在不同的合并策略（如各种钩子函数、methods、computed等）
     const strat = strats[key] || defaultStrat
     options[key] = strat(parent[key], child[key], vm, key)
   }

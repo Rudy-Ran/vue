@@ -61,7 +61,7 @@ export default class Dep {
 // This is globally unique because only one watcher
 // can be evaluated at a time.
 
-// Dep.target = 当前正在执行的 watcher
+// Dep.target = 当前正在执行的 watcher 同一时间只会有一个watcher执行
 Dep.target = null
 const targetStack = []
 

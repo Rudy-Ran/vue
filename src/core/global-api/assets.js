@@ -1,5 +1,5 @@
 /* @flow */
-
+// const ASSET_TYPES = ['component', 'directive', 'filter']
 import { ASSET_TYPES } from 'shared/constants'
 import { isPlainObject, validateComponentName } from '../util/index'
 
@@ -23,7 +23,7 @@ export function initAssetRegisters (Vue: GlobalAPI) {
         if (type === 'component' && isPlainObject(definition)) {
           // 设置组件名称
           definition.name = definition.name || id
-          // Vue.extend方法 基于definition去扩展一个新的组件子类 
+          // Vue.extend方法 基于definition去扩展一个新的组件子类
           definition = this.options._base.extend(definition)
         }
         if (type === 'directive' && typeof definition === 'function') {

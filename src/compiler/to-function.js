@@ -20,7 +20,9 @@ function createFunction (code, errors) {
 
 export function createCompileToFunctionFn (compile: Function): Function {
   const cache = Object.create(null)
-
+  /**
+   *
+   */
   return function compileToFunctions (
     template: string,
     options?: CompilerOptions,
@@ -57,10 +59,11 @@ export function createCompileToFunctionFn (compile: Function): Function {
     }
 
     // check cache
-    // 如果有缓存 则跳过编译 直接从缓存中获取上次编译的结果
+
     const key = options.delimiters
       ? String(options.delimiters) + template
       : template
+    // 如果有缓存 则跳过编译 直接从缓存中获取上次编译的结果
     if (cache[key]) {
       return cache[key]
     }

@@ -39,11 +39,12 @@ export type CodegenResult = {
   render: string,
   staticRenderFns: Array<string>
 };
-
+// 从AST生成渲染函数
 export function generate (
   ast: ASTElement | void,
   options: CompilerOptions
 ): CodegenResult {
+  // 实例化 CodegenState 对象，生成代码的时候需要用到其中的一些东西
   const state = new CodegenState(options)
   // fix #11483, Root level <script> tags should not be rendered.
   const code = ast ? (ast.tag === 'script' ? 'null' : genElement(ast, state)) : '_c("div")'
@@ -76,6 +77,7 @@ export function genElement (el: ASTElement, state: CodegenState): string {
     if (el.component) {
       code = genComponent(el.component, el, state)
     } else {
+      // 自定义组件和原生标签
       let data
       if (!el.plain || (el.pre && state.maybeComponent(el))) {
         data = genData(el, state)

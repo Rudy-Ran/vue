@@ -56,19 +56,25 @@ export function initLifecycle (vm: Component) {
 }
 
 export function lifecycleMixin (Vue: Class<Component>) {
+  // 负责更新页面，页面首次渲染和后续更新的入口位置，也是 patch 的入口位置
   Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) {
     const vm: Component = this
     const prevEl = vm.$el
+    // 老的vnode
     const prevVnode = vm._vnode
     const restoreActiveInstance = setActiveInstance(vm)
+    // 新的vnode
     vm._vnode = vnode
     // Vue.prototype.__patch__ is injected in entry points
     // based on the rendering backend used.
+    // 不存在老vnode
     if (!prevVnode) {
       // initial render
+      // 首次渲染走这里
       vm.$el = vm.__patch__(vm.$el, vnode, hydrating, false /* removeOnly */)
     } else {
       // updates
+      // 响应式数据更新时，即更新页面时走这里
       vm.$el = vm.__patch__(prevVnode, vnode)
     }
     restoreActiveInstance()
@@ -87,6 +93,10 @@ export function lifecycleMixin (Vue: Class<Component>) {
     // updated in a parent's updated hook.
   }
 
+  /**
+ * 直接调用 watcher.update 方法，迫使组件重新渲染。
+ * 它仅仅影响实例本身和插入插槽内容的子组件，而不是所有子组件
+ */
   Vue.prototype.$forceUpdate = function () {
     const vm: Component = this
     if (vm._watcher) {
@@ -94,6 +104,7 @@ export function lifecycleMixin (Vue: Class<Component>) {
     }
   }
 
+  // 完全销毁一个实例。清理它与其它实例的连接，解绑它的全部指令及事件监听器
   Vue.prototype.$destroy = function () {
     const vm: Component = this
     if (vm._isBeingDestroyed) {
@@ -103,10 +114,12 @@ export function lifecycleMixin (Vue: Class<Component>) {
     vm._isBeingDestroyed = true
     // remove self from parent
     const parent = vm.$parent
+    // 把自己和父节点断开
     if (parent && !parent._isBeingDestroyed && !vm.$options.abstract) {
       remove(parent.$children, vm)
     }
     // teardown watchers
+    // 移除依赖监听
     if (vm._watcher) {
       vm._watcher.teardown()
     }
@@ -122,6 +135,7 @@ export function lifecycleMixin (Vue: Class<Component>) {
     // call the last hook...
     vm._isDestroyed = true
     // invoke destroy hooks on current rendered tree
+      // 调用 __patch__，销毁节点
     vm.__patch__(vm._vnode, null)
     // fire destroyed hook
     callHook(vm, 'destroyed')
@@ -137,7 +151,7 @@ export function lifecycleMixin (Vue: Class<Component>) {
     }
   }
 }
-
+// $mount执行这个方法
 export function mountComponent (
   vm: Component,
   el: ?Element,

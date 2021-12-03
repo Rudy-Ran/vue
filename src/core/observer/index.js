@@ -165,7 +165,7 @@ export function defineReactive (
 ) {
   // 实例化 dep 一个key对应一个dep
   const dep = new Dep()
-  // 获取属性描述符
+  // 获取属性描述符 发现是不可配置对象的话直接return
   const property = Object.getOwnPropertyDescriptor(obj, key)
   if (property && property.configurable === false) {
     return
@@ -174,6 +174,7 @@ export function defineReactive (
   // cater for pre-defined getter/setters
   const getter = property && property.get
   const setter = property && property.set
+  // 记录 getter 和 setter，获取 val 值
   if ((!getter || setter) && arguments.length === 2) {
     val = obj[key]
   }
@@ -193,6 +194,7 @@ export function defineReactive (
        * 而回调函数中如果有 vm.key 的读取行为，则会触发这里的 读取 拦截，进行依赖收集
        * 回调函数执行完以后又会将 Dep.target 设置为 null，避免这里重复收集依赖
        */
+      // 如果当前的key确实被某个watcher观察着
       if (Dep.target) {
         // 读取时进行的依赖收集 将dep放到watcher中 也将watcher添加到dep中
         dep.depend()

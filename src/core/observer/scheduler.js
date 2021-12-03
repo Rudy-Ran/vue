@@ -68,6 +68,9 @@ if (inBrowser && !isIE) {
 /**
  * Flush both queues and run the watchers.
  */
+/**
+ * 刷新队列 友flushCallbacks函数负责调用
+ */
 function flushSchedulerQueue () {
   currentFlushTimestamp = getNow()
   // flushing = true 表示现在的watcher队列正在刷新
@@ -102,6 +105,7 @@ function flushSchedulerQueue () {
     // 清空缓存，表示当前watcher已经被执行 当该watcher再次入队时就可以进来了
     id = watcher.id
     has[id] = null
+    // 执行 watcher.run，最终触发更新函数，比如 updateComponent
     watcher.run()
     // in dev build, check and stop circular updates.
     if (process.env.NODE_ENV !== 'production' && has[id] != null) {

@@ -278,7 +278,6 @@ function createComputedGetter (key) {
     if (watcher) {
       // 执行computed.key的函数，获取得到的结果赋值给watch.value
       // 将watcher.dirty置为false
-      // computed和methods区别?
       // 在一次渲染当中，只会执行一次computed函数，后续就不会执行（dirty已经变成了false） 直到下一次更新之后才会再次执行
       if (watcher.dirty) {
         watcher.evaluate()
@@ -388,13 +387,14 @@ export function stateMixin (Vue: Class<Component>) {
       warn(`$props is readonly.`, this)
     }
   }
+  // 将data属性和props属性挂载到Vue.prototype上
   Object.defineProperty(Vue.prototype, '$data', dataDef)
   Object.defineProperty(Vue.prototype, '$props', propsDef)
 
   Vue.prototype.$set = set
   Vue.prototype.$delete = del
 /**
- * 创建watcher 返回unwatch 共完成如下5件事：
+ * 创建watcher 返回unwatch
  * 1. 兼容性处理，保证最后 new Watcher 时的 cb 为函数
  * 2. 标示用户 watcher
  * @param {*} expOrFn key

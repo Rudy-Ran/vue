@@ -59,11 +59,11 @@ export function eventsMixin (Vue: Class<Component>) {
         vm.$on(event[i], fn)
       }
     } else {
-      // 将注册事件和回调以键值对的形式存储到 vm._event 对象中 vm._event = {eventName: fn1}
+      // 将注册事件和回调以键值对的形式存储到 vm._event 对象中 vm._event = {eventName: [fn1,...]}
       (vm._events[event] || (vm._events[event] = [])).push(fn)
       // optimize hook:event cost by using a boolean flag marked at registration
       // instead of a hash lookup
-      // TODO:这里不太理解
+      // hookEvent ，提供从外部为组件实例注入声明周期方法的机会
       if (hookRE.test(event)) {
         vm._hasHookEvent = true
       }
@@ -85,6 +85,7 @@ export function eventsMixin (Vue: Class<Component>) {
   Vue.prototype.$off = function (event?: string | Array<string>, fn?: Function): Component {
     const vm: Component = this
     // all
+    // vm.$off() 移除实例上的所有监听器 => vm._events = {}
     if (!arguments.length) {
       vm._events = Object.create(null)
       return vm
@@ -99,13 +100,16 @@ export function eventsMixin (Vue: Class<Component>) {
     // specific event
     const cbs = vm._events[event]
     if (!cbs) {
+      // 表示没有注册过该事件
       return vm
     }
     if (!fn) {
+      // 没有提供 fn 回调函数，则移除该事件的所有回调函数，vm._event[event] = null
       vm._events[event] = null
       return vm
     }
     // specific handler
+    // 移除指定事件的指定回调函数，就是从事件的回调数组中找到该回调函数，然后删除
     let cb
     let i = cbs.length
     while (i--) {
@@ -123,7 +127,7 @@ export function eventsMixin (Vue: Class<Component>) {
     if (process.env.NODE_ENV !== 'production') {
       // 事件名转化成小写
       const lowerCaseEvent = event.toLowerCase()
-      // 意思是说，HTML 属性不区分大小写，所以你不能使用 v-on 监听小驼峰形式的事件名（eventName），而应该使用连字符形式的事件名（event-name)
+      // HTML 属性不区分大小写，所以你不能使用 v-on 监听小驼峰形式的事件名（eventName），而应该使用连字符形式的事件名（event-name)
       if (lowerCaseEvent !== event && vm._events[lowerCaseEvent]) {
         tip(
           `Event "${lowerCaseEvent}" is emitted in component ` +

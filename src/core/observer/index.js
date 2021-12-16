@@ -165,7 +165,7 @@ export function  defineReactive (
 ) {
   // 实例化 dep 一个key对应一个dep
   const dep = new Dep()
-  // 获取属性描述符
+  // 获取属性描述符 发现是不可配置对象的话直接return
   const property = Object.getOwnPropertyDescriptor(obj, key)
   if (property && property.configurable === false) {
     return
@@ -174,6 +174,7 @@ export function  defineReactive (
   // cater for pre-defined getter/setters
   const getter = property && property.get
   const setter = property && property.set
+  // 记录 getter 和 setter，获取 val 值
   if ((!getter || setter) && arguments.length === 2) {
     val = obj[key]
   }
@@ -187,13 +188,20 @@ export function  defineReactive (
     get: function reactiveGetter () {
       const value = getter ? getter.call(obj) : val
       // 依赖收集
+      /**
+       * Dep.target为Dep类的一个静态属性 值为watcher 在实例化watcher时会被设置
+       * 实例化 Watcher 时会执行 new Watcher 时传递的回调函数（computed 除外，因为它懒执行）
+       * 而回调函数中如果有 vm.key 的读取行为，则会触发这里的 读取 拦截，进行依赖收集
+       * 回调函数执行完以后又会将 Dep.target 设置为 null，避免这里重复收集依赖
+       */
+      // 如果当前的key确实被某个watcher观察着
       if (Dep.target) {
         // 读取时进行的依赖收集 将dep放到watcher中 也将watcher添加到dep中
         dep.depend()
         if (childOb) {
           // 对嵌套对象也进行依赖收集
           childOb.dep.depend()
-          // 处理数组情况
+          // 处理数组情况 对象里面是数组
           if (Array.isArray(value)) {
             dependArray(value)
           }
@@ -235,6 +243,7 @@ export function  defineReactive (
  * Set a property on an object. Adds the new property and
  * triggers change notification if the property doesn't
  * already exist.
+ *
  * 通过Vue.set 或者 this.$set方法给target指定的key设置值 val
  * 如果 target 是对象，并且 key 原本不存在，则为新 key 设置响应式，然后执行依赖通知
  */
@@ -251,12 +260,14 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
     target.splice(key, 1, val)
     return val
   }
-  // 处理对象上的情况
+  // 处理对象上的情况 存在的话就更新值
   if (key in target && !(key in Object.prototype)) {
     target[key] = val
     return val
   }
   const ob = (target: any).__ob__
+  // 不能向 Vue 实例或者 $data 添加动态添加响应式属性，vmCount 的用处之一，
+  // this.$data 的 ob.vmCount = 1，表示根组件，其它子组件的 vm.vmCount 都是 0
   if (target._isVue || (ob && ob.vmCount)) {
     process.env.NODE_ENV !== 'production' && warn(
       'Avoid adding reactive properties to a Vue instance or its root $data ' +
@@ -264,6 +275,7 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
     )
     return val
   }
+  // target不是响应式对象 即没有__ob__属性 新属性会被设置，但是不会做响应式处理
   if (!ob) {
     target[key] = val
     return val
@@ -297,7 +309,7 @@ export function del (target: Array<any> | Object, key: any) {
     )
     return
   }
-  // 处理对象上的情况
+  // 处理对象上的情况 如果属性不存在直接结束
   if (!hasOwn(target, key)) {
     return
   }
@@ -313,6 +325,7 @@ export function del (target: Array<any> | Object, key: any) {
 /**
  * Collect dependencies on array elements when the array is touched, since
  * we cannot intercept array element access like property getters.
+ *
  * 处理数组选项为对象的情况，对其进行依赖收集 因为前面的处理都无法对数组项为对象的元素进行依赖收集
  */
 function  dependArray (value: Array<any>) {

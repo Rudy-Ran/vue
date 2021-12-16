@@ -208,8 +208,8 @@ function initComputed (vm: Component, computed: Object) {
 
     if (!isSSR) {
       // create internal watcher for the computed property.
-      // 为computed属性创建 watcher实例 computed其实就是通过watcher实现的
 
+      // 为每个computed属性创建 watcher实例 computed其实就是通过watcher实现的
       watchers[key] = new Watcher(
         vm,
         getter || noop,
@@ -271,13 +271,13 @@ export function defineComputed (
 }
 
 function createComputedGetter (key) {
+  // 返回一个函数 这个函数在访问vm.computedProperty时会执行 然后返回执行结果
   return function computedGetter () {
     // 得到key对应的watcher
     const watcher = this._computedWatchers && this._computedWatchers[key]
     if (watcher) {
       // 执行computed.key的函数，获取得到的结果赋值给watch.value
       // 将watcher.dirty置为false
-      // computed和methods区别?
       // 在一次渲染当中，只会执行一次computed函数，后续就不会执行（dirty已经变成了false） 直到下一次更新之后才会再次执行
       if (watcher.dirty) {
         watcher.evaluate()
@@ -296,8 +296,12 @@ function createGetterInvoker(fn) {
   }
 }
 /**
- * 做了三件事
- *
+ *   1、校验 methoss[key]，必须是一个函数
+ *   2、判重
+*         methods 中的 key 不能和 props 中的 key 相同
+*         methos 中的 key 与 Vue 实例上已有的方法重叠，一般是一些内置方法，比如以 $ 和 _ 开头的方法
+ *   3、将 methods[key] 放到 vm 实例上，得到 vm[key] = methods[key]
+
  * @param {*} vm
  * @param {*} methods
  */
@@ -335,6 +339,7 @@ function initWatch (vm: Component, watch: Object) {
   for (const key in watch) {
     const handler = watch[key]
     if (Array.isArray(handler)) {
+      // handler 为数组，遍历数组，获取其中的每一项，然后调用 createWatcher
       for (let i = 0; i < handler.length; i++) {
         createWatcher(vm, key, handler[i])
       }
@@ -382,14 +387,16 @@ export function stateMixin (Vue: Class<Component>) {
       warn(`$props is readonly.`, this)
     }
   }
+  // 将data属性和props属性挂载到Vue.prototype上
   Object.defineProperty(Vue.prototype, '$data', dataDef)
   Object.defineProperty(Vue.prototype, '$props', propsDef)
 
   Vue.prototype.$set = set
   Vue.prototype.$delete = del
 /**
- * 创建watcher 返回unwatch 共完成如下5件事：
- * 1.
+ * 创建watcher 返回unwatch
+ * 1. 兼容性处理，保证最后 new Watcher 时的 cb 为函数
+ * 2. 标示用户 watcher
  * @param {*} expOrFn key
  * @param {*} cb      key对应的回调
  * @param {*} options 配置选项
@@ -406,7 +413,7 @@ export function stateMixin (Vue: Class<Component>) {
       return createWatcher(vm, expOrFn, cb, options)
     }
     options = options || {}
-    // 标记这是一个用户watcher
+    // 标记这是一个用户watcher 还有渲染 watcher，即 updateComponent 方法中实例化的 watcher
     options.user = true
     // 实例化watcher
     const watcher = new Watcher(vm, expOrFn, cb, options)

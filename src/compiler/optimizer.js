@@ -21,7 +21,9 @@ const genStaticKeysCached = cached(genStaticKeys)
 
 export function optimize (root: ?ASTElement, options: CompilerOptions) {
   if (!root) return
+  // 函数 获取静态key 比如staticStyle、staticClass
   isStaticKey = genStaticKeysCached(options.staticKeys || '')
+  // 判断是否是平台保留标签
   isPlatformReservedTag = options.isReservedTag || no
   // first pass: mark all non-static nodes.
   markStatic(root)

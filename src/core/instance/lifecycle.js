@@ -58,16 +58,21 @@ export function initLifecycle (vm: Component) {
 export function lifecycleMixin (Vue: Class<Component>) {
   Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) {
     const vm: Component = this
+    // 页面挂载点,真实的元素
     const prevEl = vm.$el
+    // 老的vnode
     const prevVnode = vm._vnode
     const restoreActiveInstance = setActiveInstance(vm)
+    // 新的vnode
     vm._vnode = vnode
     // Vue.prototype.__patch__ is injected in entry points
     // based on the rendering backend used.
+    // 老的vnode不存在 说明是首次渲染 即初始化页面时走这里
     if (!prevVnode) {
       // initial render
       vm.$el = vm.__patch__(vm.$el, vnode, hydrating, false /* removeOnly */)
     } else {
+      // 老的vnode存在，表示后续更新时走这里
       // updates
       vm.$el = vm.__patch__(prevVnode, vnode)
     }
@@ -196,6 +201,7 @@ export function mountComponent (
   // we set this to vm._watcher inside the watcher's constructor
   // since the watcher's initial patch may call $forceUpdate (e.g. inside child
   // component's mounted hook), which relies on vm._watcher being already defined
+  // 渲染watcher 执行updateComponent更新组件
   new Watcher(vm, updateComponent, noop, {
     before () {
       if (vm._isMounted && !vm._isDestroyed) {

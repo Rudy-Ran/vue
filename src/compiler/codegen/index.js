@@ -44,7 +44,7 @@ export function generate (
   ast: ASTElement | void,
   options: CompilerOptions
 ): CodegenResult {
-  // 实例化CodegenState对象 生成代码的时候需要用到其中的一些东西
+  // 实例化CodegenState对象 参数是编译选项 最终得到的属性大部分和options一样
   const state = new CodegenState(options)
   // fix #11483, Root level <script> tags should not be rendered.
   const code = ast ? (ast.tag === 'script' ? 'null' : genElement(ast, state)) : '_c("div")'
@@ -54,7 +54,7 @@ export function generate (
   }
 }
 
-export function genElement (el: ASTElement, state: CodegenState): string {
+export function   (el: ASTElement, state: CodegenState): string {
   if (el.parent) {
     el.pre = el.pre || el.parent.pre
   }
@@ -73,10 +73,10 @@ export function genElement (el: ASTElement, state: CodegenState): string {
     return genSlot(el, state)
   } else {
     // component or element
+        // 处理动态组件或者普通元素（自定义组件和平台保留标签 比如web平台的各个html标签）
     let code
-    // 处理动态组件 生成动态组件的渲染函数
-    // 得到`_c(compName,data,children)`
     if (el.component) {
+      // 动态组件 
       code = genComponent(el.component, el, state)
     } else {
       let data
@@ -466,7 +466,8 @@ function genScopedSlot (
   const reverseProxy = slotScope ? `` : `,proxy:true`
   return `{key:${el.slotTarget || `"default"`},fn:${fn}${reverseProxy}}`
 }
-
+// 得到当前节点所有子节点的渲染函数
+// 格式为：[_c(tag,data,children)],normalizationType
 export function genChildren (
   el: ASTElement,
   state: CodegenState,
@@ -474,8 +475,10 @@ export function genChildren (
   altGenElement?: Function,
   altGenNode?: Function
 ): string | void {
+  // 拿到所有子节点
   const children = el.children
   if (children.length) {
+    // 拿到第一个子节点
     const el: any = children[0]
     // optimize single v-for
     if (children.length === 1 &&
@@ -483,9 +486,11 @@ export function genChildren (
       el.tag !== 'template' &&
       el.tag !== 'slot'
     ) {
+      // 只有一个子节点 & 这个子节点上面有v-for指令 & 节点标签名不是template & 标签名不是slot
       const normalizationType = checkSkip
         ? state.maybeComponent(el) ? `,1` : `,0`
         : ``
+        // 优化：直接调用genElement 不需要执行下面的children循环和调用genNode
       return `${(altGenElement || genElement)(el, state)}${normalizationType}`
     }
     const normalizationType = checkSkip
